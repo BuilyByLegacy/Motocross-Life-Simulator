@@ -76,6 +76,7 @@ export class App {
   renderTitle() {
     let name = 'Riley';
     let depth = 'detailed';
+    let campaign = 'rider';
     const thisYear = new Date().getFullYear();
     let birthdate = `${thisYear - 4}-05-15`; // default: rider turns 4 this year
 
@@ -94,6 +95,26 @@ export class App {
     );
 
     const nameInput = el('input', { value: name, maxlength: '14', oninput: (e) => (name = e.target.value.trim() || 'Riley') });
+
+    const campaignDefs = [
+      { key: 'rider', label: '🏍️ Rider', blurb: 'You are the kid. Plan your weeks, prep the bike, and ride every lap.' },
+      { key: 'parent', label: '👨‍👩‍👧 Parent', blurb: 'You are the parent. Work, money, family, safety, and support — you provide, they ride.' },
+    ];
+    const campaignCards = campaignDefs.map((c) =>
+      el('div', {
+        class: 'depth-card' + (c.key === campaign ? ' selected' : ''),
+        'data-campaign': c.key,
+        onclick: () => {
+          campaign = c.key;
+          this.root.querySelectorAll('[data-campaign]').forEach((el2) => el2.classList.toggle('selected', el2.dataset.campaign === campaign));
+          nameLabel.textContent = campaign === 'parent' ? "Your kid's name" : "Your rider's name";
+        },
+      },
+        el('b', {}, c.label),
+        el('div', { class: 'small muted' }, c.blurb),
+      )
+    );
+    const nameLabel = el('label', {}, "Your rider's name");
 
     const ageHint = el('span', { class: 'faint small' });
     const updateAgeHint = () => {
@@ -134,7 +155,11 @@ export class App {
       save ? el('p', { class: 'faint small center' }, '— or start a new life —') : null,
       el('div', { class: 'card' },
         el('div', { class: 'field' },
-          el('label', {}, "Your rider's name"),
+          el('label', {}, 'Play as…'),
+          el('div', { class: 'depth-grid' }, ...campaignCards),
+        ),
+        el('div', { class: 'field' },
+          nameLabel,
           nameInput,
         ),
         el('div', { class: 'field' },
@@ -146,16 +171,16 @@ export class App {
           el('label', {}, 'Simulation depth — how much do you want to live yourself?'),
           el('div', { class: 'depth-grid' }, ...depthCards),
         ),
-        el('button', { class: 'btn primary wide', onclick: () => this.startGame({ name, depth, birthdate }) }, `Begin — ${thisYear} Season`),
+        el('button', { class: 'btn primary wide', onclick: () => this.startGame({ name, depth, birthdate, campaign }) }, `Begin — ${thisYear} Season`),
       ),
       el('p', { class: 'faint small center' }, 'Prototype v0.1 · Legacy Studios · Build memories, not mechanics.'),
     );
     this.root.replaceChildren(view);
   }
 
-  startGame({ name, depth, birthdate }) {
+  startGame({ name, depth, birthdate, campaign }) {
     this.clearSave(); // a fresh life replaces any prior save
-    this.game = new Game({ riderName: name, depth, birthdate, seed: Date.now() });
+    this.game = new Game({ riderName: name, depth, birthdate, campaign, seed: Date.now() });
     this.tab = 'week';
     this.startWeek();
   }
@@ -180,11 +205,14 @@ export class App {
     const meta = g.meta() ?? { title: 'Season Over' };
     const supportLabels = ['Family Supported', 'Local Shop Rider', 'Dealer Supported', 'Regional Support'];
     return el('div', { class: 'topbar' },
-      el('div', { class: 'brand' }, g.rider.name, el('small', {}, ` · age ${g.rider.age} · ${g.rider.klass}`)),
+      el('div', { class: 'brand' },
+        g.isParent ? el('span', {}, 'Raising ', g.rider.name) : el('span', {}, g.rider.name),
+        el('small', {}, ` · age ${g.rider.age} · ${g.rider.klass}`),
+      ),
       el('div', {},
         el('span', { class: 'badge amber' }, `${g.seasonYear} · Wk ${Math.min(g.week, 12)}/12`),
         ' ',
-        el('span', { class: 'badge' }, SIM_DEPTHS[g.state.simDepth].label),
+        el('span', { class: 'badge' }, g.isParent ? '👨‍👩‍👧 Parent' : '🏍️ Rider'),
         ' ',
         el('span', { class: 'badge' }, supportLabels[g.family.support_level] ?? 'Supported'),
       ),
@@ -210,6 +238,20 @@ export class App {
         el('div', { class: 'v mono' }, v),
         meterVal != null ? this.meter(meterVal, invert) : null,
       );
+    if (g.isParent) {
+      const marriage = g.rel('spouse');
+      const marriageScore = Math.max(0, Math.min(100, 60 + (marriage.get('agreement') - 50) - (marriage.get('strain') - 20)));
+      return el('div', { class: 'stats' },
+        stat('Kid age', r.age),
+        stat('Money', '$' + g.family.money.toLocaleString()),
+        stat('Kid morale', r.confidence, r.confidence),
+        stat('Kid burnout', r.burnout ?? 0, r.burnout ?? 0, true),
+        stat('Your stress', g.family.stress, g.family.stress, true),
+        stat('Marriage', marriageScore, marriageScore),
+        stat('Bike condition', g.bike.condition, g.bike.condition),
+        stat('Season points', g.state.season.points),
+      );
+    }
     return el('div', { class: 'stats' },
       stat('Age', r.age),
       stat('Money', '$' + g.family.money.toLocaleString()),
@@ -355,8 +397,8 @@ export class App {
     const sel = this.plannerSel;
 
     const grid = el('div', { class: 'activity-grid' },
-      ...['practice', 'fitness', 'wrench', 'family', 'school', 'rest', 'odd_jobs', 'market'].map((id) => {
-        const a = g.activityById(id);
+      ...g.availableActivities().map((a) => {
+        const id = a.id;
         const isSel = sel.includes(id);
         const cost = id === 'wrench' && g.family.support_level >= 1 ? 0 : a.cost;
         return el('div', {
@@ -417,8 +459,10 @@ export class App {
     const warn = [];
     if (g.bike.condition < 45) warn.push('The bike is worn — reliability is a gamble.');
     if (g.bike.reliability < 50) warn.push('Reliability is low; a DNF is possible.');
-    if (g.rider.fatigue > 60) warn.push("You're fatigued — you'll fade late.");
-    if (g.rider.injury) warn.push(`You're racing hurt (${g.rider.injury.name}).`);
+    if (g.rider.fatigue > 60) warn.push(`${g.isParent ? 'They look' : "You're"} run down — a late-race fade is likely.`);
+    if (g.rider.injury) warn.push(`${g.isParent ? 'The kid is' : "You're"} racing hurt (${g.rider.injury.name}).`);
+
+    if (g.isParent) return this.viewParentRaceIntro(race, form, formWord, warn);
 
     return el('div', {},
       el('div', { class: 'card' },
@@ -434,6 +478,50 @@ export class App {
         ),
       ),
     );
+  }
+
+  viewParentRaceIntro(race, form, formWord, warn) {
+    const g = this.game;
+    if (this._payPit === undefined) this._payPit = false;
+    const canPay = g.family.money >= 60;
+    return el('div', {},
+      el('div', { class: 'card' },
+        el('div', { class: 'eyebrow' }, race.kind === 'regional' ? '🏆 Regional Qualifier' : '🏁 Race Day'),
+        el('h2', {}, race.name),
+        el('p', { class: 'muted' }, `${g.rider.name} is on the gate. ${race.motos} motos · ${race.laps} laps · ${g.world.field().length + 1} riders.`),
+        el('p', {}, `Their form: `, el('b', { style: 'color:var(--amber-2)' }, `${formWord} (${form})`)),
+        warn.length ? el('div', { class: 'hint' }, '⚠️ ' + warn.join(' ')) : el('p', { class: 'small faint' }, 'The bike and the kid look ready.'),
+        el('hr', { class: 'divider' }),
+        el('label', { class: 'pit-toggle' },
+          el('input', { type: 'checkbox', ...(this._payPit ? { checked: 'checked' } : {}), disabled: !canPay,
+            onchange: (e) => { this._payPit = e.target.checked; } }),
+          el('span', {}, ` Hire pit support for $60 ${canPay ? '(steadier bike, better start)' : '— not enough money'}`),
+        ),
+        el('p', { class: 'small faint', style: 'margin-top:10px' }, 'What do you tell them at the gate?'),
+        el('div', {},
+          ...Object.entries(g.RACE_STANCES).map(([k, s]) =>
+            el('button', { class: 'choice', onclick: () => this.startParentRace(k) },
+              el('b', {}, s.label),
+              el('div', { class: 'tip' }, k === 'push' ? 'Best result — but more pressure and burnout.'
+                : k === 'safe' ? 'Protects them; a more conservative ride.'
+                : 'Lightest on the kid; keeps the love of it alive.'),
+            )
+          ),
+        ),
+      ),
+    );
+  }
+
+  startParentRace(stanceKey) {
+    const g = this.game;
+    const strategy = g.prepParentRace(stanceKey, this._payPit);
+    this._payPit = false;
+    const race = g.buildRace();
+    const result = race.simulateRemaining(strategy);
+    g.applyRaceResult(result);
+    this.lastResult = result;
+    this.digest.push({ type: 'race', result });
+    this.showWeek(() => this.viewRaceResult(result));
   }
 
   quickSimRace() {
@@ -545,7 +633,7 @@ export class App {
         el('div', { class: 'muted' }, result.dnf ? 'A tough day. It happens.' : `${place} overall  ·  +${result.points} points`),
         el('div', { class: 'small faint', style: 'margin:6px 0' }, motoLine),
         podium,
-        result.rivalOverall ? el('p', { class: 'small' }, `Ethan finished ${ordinal(result.rivalOverall)}. ${result.overall < result.rivalOverall ? 'You beat your rival today.' : 'He got you this time.'}`) : null,
+        result.rivalOverall ? el('p', { class: 'small' }, `${this.game.world.rival()?.name ?? 'Your rival'} finished ${ordinal(result.rivalOverall)}. ${result.overall < result.rivalOverall ? (this.game.isParent ? 'Your kid beat the rival today.' : 'You beat your rival today.') : 'They got you this time.'}`) : null,
         el('button', { class: 'btn primary wide', onclick: () => this.finishWeek() }, 'Load up and head home →'),
       ),
     );
@@ -894,7 +982,7 @@ export class App {
         el('p', { class: 'muted' }, 'The garage remembers all of it. Where does the story go from here?'),
         el('div', { class: 'toolbar', style: 'justify-content:center; flex-direction:column' },
           el('button', { class: 'btn primary wide', onclick: () => this.nextSeason() },
-            `▶️ Ride ${g.seasonYear + 1} — ${g.rider.name} at ${(g.seasonYear + 1) - g.rider.birthYear} (${g.classForAge((g.seasonYear + 1) - g.rider.birthYear)})`),
+            `▶️ ${g.isParent ? 'Raise' : 'Ride'} ${g.seasonYear + 1} — ${g.rider.name} at ${(g.seasonYear + 1) - g.rider.birthYear} (${g.classForAge((g.seasonYear + 1) - g.rider.birthYear)})`),
           el('button', { class: 'btn ghost wide', onclick: () => this.renderRetirement() }, '🏆 Retire & look back on the career'),
           el('button', { class: 'btn ghost wide', onclick: () => { this.clearSave(); this.renderTitle(); } }, '🔁 Start a whole new life'),
         ),
@@ -973,6 +1061,13 @@ export class App {
 
   recapClosingLine(g, { wins, podiums }) {
     const name = g.rider.name;
+    if (g.isParent) {
+      if (wins >= 2) return `You gave ${name} a season they'll tell their own kids about. Every shift was worth it.`;
+      if (wins === 1) return `Their first win came this year — and you were the one who drove them there. That's yours too.`;
+      if (podiums >= 1) return `A podium, a rival, and a kid who still loves it. You held the family together and got them there.`;
+      if ((g.rider.burnout ?? 0) > 60) return `A hard year. The kid's worn thin — maybe next season is about the love of it again, not the results.`;
+      return `No trophies. But ${name} kept showing up, and so did you. Some seasons you just keep the dream alive. That counts.`;
+    }
     if (wins >= 2) return `A season people will talk about. ${name} didn't just race — ${name} arrived.`;
     if (wins === 1) return `The first win came this year. However far it goes, ${name} will always have that day.`;
     if (podiums >= 1) return `Not a championship — but a box, a rival earned, and a family that showed up. That's a season worth keeping.`;

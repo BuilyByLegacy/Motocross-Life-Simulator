@@ -224,6 +224,9 @@ button { font-family: inherit; }
 .history-row .hr-yr { color: var(--amber-2); font-weight: 600; }
 .history-row .hr-cl { color: var(--ink-faint); font-size: 0.78rem; }
 
+.pit-toggle { display: flex; align-items: center; gap: 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font-size: 0.9rem; cursor: pointer; }
+.pit-toggle input { width: 18px; height: 18px; accent-color: var(--amber); }
+
 .hint { background: #1d2733; border: 1px solid #2c3a49; color: #bcd3e6; border-radius: 10px; padding: 10px 12px; font-size: 0.88rem; margin-bottom: 12px; }
 .empty { color: var(--ink-faint); font-style: italic; padding: 8px 0; }
 

@@ -8,7 +8,7 @@
 import { RNG } from './core/rng.js';
 import { EventBus } from './core/eventBus.js';
 import { createInitialState } from './core/state.js';
-import { CALENDAR, ACTIVITIES, CLASS_FOR_AGE, BIKE_FOR_CLASS } from './data/content.js';
+import { CALENDAR, ACTIVITIES, ACTIVITIES_PARENT, CLASS_FOR_AGE, BIKE_FOR_CLASS } from './data/content.js';
 import { MemoryEngine } from './engines/memoryEngine.js';
 import { RelationshipEngine } from './engines/relationshipEngine.js';
 import { WorldEngine } from './engines/worldEngine.js';
@@ -47,9 +47,10 @@ export const SIM_DEPTHS = {
 };
 
 export class Game {
-  constructor({ riderName = 'Riley', seed = Date.now(), depth = 'detailed', birthdate = '2022-05-15' } = {}) {
-    this.state = createInitialState(riderName, seed, birthdate);
+  constructor({ riderName = 'Riley', seed = Date.now(), depth = 'detailed', birthdate = '2022-05-15', campaign = 'rider' } = {}) {
+    this.state = createInitialState(riderName, seed, birthdate, campaign);
     this.state.simDepth = depth;
+    this.state.campaign = campaign;
     this.rng = new RNG(seed);
     this.bus = new EventBus();
 
@@ -76,6 +77,8 @@ export class Game {
   get garage() { return this.state.garage; }
   get season() { return this.state.season; }
   get depth() { return SIM_DEPTHS[this.state.simDepth]; }
+  get campaign() { return this.state.campaign; }
+  get isParent() { return this.state.campaign === 'parent'; }
   // Calendar year of the current season (2026, 2027, ...).
   get seasonYear() { return this.state.startYear + this.state.seasonNumber - 1; }
 
@@ -101,6 +104,7 @@ export class Game {
   }
   confidence(delta) { this.rider.confidence = clamp(this.rider.confidence + delta); }
   fatigue(delta) { this.rider.fatigue = clamp(this.rider.fatigue + delta); }
+  burnout(delta) { this.rider.burnout = clamp((this.rider.burnout ?? 0) + delta); }
   stress(delta) { this.family.stress = clamp(this.family.stress + delta); }
   bikeCondition(delta) { this.bike.condition = clamp(this.bike.condition + delta); }
   bikeReliability(delta) { this.bike.reliability = clamp(this.bike.reliability + delta); }
@@ -183,18 +187,48 @@ export class Game {
     if (this.family.support_level >= 1) {
       this.addMoney(30);
     }
+    // Parent mode: the kid lives their own week too — a little self-driven
+    // practice, and burnout that quietly shapes their morale.
+    if (this.isParent) {
+      if (this.rng.chance(0.6)) this.skill(this.rng.pick(['cornering', 'jumping', 'whoops']), 1);
+      if ((this.rider.burnout ?? 0) > 65) this.confidence(-3);
+      else if ((this.rider.burnout ?? 0) < 25) this.confidence(1);
+      this.burnout(-2); // natural recovery between weeks
+    }
+
     // The world moves on its own.
     this.world.tick();
     // Occasionally the board turns over without the player looking.
     if (this.rng.chance(0.5)) this.market.refresh(false);
   }
 
+  // Parent-mode race prep: a support stance (mapped to a race strategy) and an
+  // optional paid pit crew. Returns the strategy the kid will ride.
+  RACE_STANCES = {
+    push: { label: 'Tell them to go for it', strategy: 'push', burnout: 6, morale: 2 },
+    safe: { label: 'Tell them to ride safe', strategy: 'conserve', burnout: 1, morale: -1 },
+    fun: { label: 'Just tell them to have fun', strategy: 'steady', burnout: -4, morale: 4 },
+  };
+  prepParentRace(stanceKey, payPit) {
+    const stance = this.RACE_STANCES[stanceKey] ?? this.RACE_STANCES.fun;
+    this.burnout(stance.burnout);
+    this.confidence(stance.morale);
+    if (payPit && this.spend(60)) this.setFlag('pit_help', true);
+    return stance.strategy;
+  }
+
   planningSlots() {
     return this.isRaceWeek() ? 1 : 2;
   }
 
+  activitySet() {
+    return this.isParent ? ACTIVITIES_PARENT : ACTIVITIES;
+  }
+  availableActivities() {
+    return this.activitySet();
+  }
   activityById(id) {
-    return ACTIVITIES.find((a) => a.id === id);
+    return this.activitySet().find((a) => a.id === id);
   }
 
   // Heuristic auto-planner for simulated weeks (DD-0020).
@@ -202,6 +236,19 @@ export class Game {
     const slots = this.planningSlots();
     const picks = [];
     const need = [];
+    if (this.isParent) {
+      if (this.bike.condition < 55 || this.bike.reliability < 55) need.push('wrench');
+      if (this.family.money < 300) need.push('work');
+      if ((this.rider.burnout ?? 0) > 55 || this.family.stress > 60) need.push('family_time');
+      const defaults = this.isRaceWeek()
+        ? ['wrench', 'work', 'rest']
+        : ['practice', 'work', 'coaching', 'family_time'];
+      for (const id of [...need, ...defaults]) {
+        if (picks.length >= slots) break;
+        if (!picks.includes(id)) picks.push(id);
+      }
+      return picks.slice(0, slots);
+    }
     if (this.bike.condition < 55 || this.bike.reliability < 55) need.push('wrench');
     if (this.rider.fatigue > 55) need.push('rest');
     if (!this.flag('grades_good') && this.rng.chance(0.4)) need.push('school');
@@ -344,7 +391,36 @@ export class Game {
       this.garage.trophies.push({ name: `${ordinal(overall)} Overall — ${result.race.name}`, week: this.week });
     }
 
+    // Parent lens: the result lands on the family, not just the stopwatch.
+    if (this.isParent) {
+      if (result.dnf) {
+        this.rel('child').change('love', 1); // you hug them anyway
+      } else if (overall <= 3) {
+        this.rel('child').change('pride', 5);
+        this.rel('child').change('love', 3);
+        this.rel('spouse').change('strain', -4);
+        this.rel('spouse').change('agreement', 2);
+        this.stress(-6);
+      } else if (overall > result.fieldSize / 2) {
+        this.rel('child').change('pressure', 2);
+        this.stress(3);
+      }
+      if (overall <= 3 && !result.dnf) {
+        this.memory.record({
+          type: 'relationship',
+          title: `You Got Them to the Box`,
+          summary: `Every shift, every drive, every dollar — and there they stood, ${ordinal(overall)} at ${result.race.name}. You did that together.`,
+          emotion: ['pride', 'joy'],
+          people: ['child'],
+          tags: ['milestone', result.race.kind],
+          importance: 78,
+          force: true,
+        });
+      }
+    }
+
     this.setFlag('mud_ready', false); // conditions prep is spent
+    this.setFlag('pit_help', false); // paid pit crew is spent
 
     this.log(`🏁 ${result.race.name}: ${result.dnf ? 'DNF' : ordinal(overall) + ' overall'} (+${result.points} pts).`);
     this.currentRace = null;

@@ -7,7 +7,7 @@
 // that reads world state; the engine samples from the eligible cards. Quiet
 // weeks are a real outcome (Story Rhythm), so big weeks land harder.
 
-import { SCENARIOS } from '../data/content.js';
+import { SCENARIOS, SCENARIOS_PARENT } from '../data/content.js';
 
 export class StoryEngine {
   constructor(game) {
@@ -16,8 +16,12 @@ export class StoryEngine {
     this.usedCareer = new Set(); // persists across seasons
   }
 
+  pool() {
+    return this.game.isParent ? SCENARIOS_PARENT : SCENARIOS;
+  }
+
   byId(id) {
-    return SCENARIOS.find((s) => s.id === id);
+    return SCENARIOS.find((s) => s.id === id) || SCENARIOS_PARENT.find((s) => s.id === id);
   }
 
   // Pick the next believable scenario, or null for a quiet week.
@@ -32,7 +36,7 @@ export class StoryEngine {
       if (sc) return sc;
     }
 
-    const eligible = SCENARIOS.filter((s) => {
+    const eligible = this.pool().filter((s) => {
       if (s.chainOnly) return false;
       if (s.once && this.used.has(s.id)) return false;
       if (s.careerOnce && this.usedCareer.has(s.id)) return false;
