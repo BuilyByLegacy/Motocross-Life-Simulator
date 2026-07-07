@@ -26,6 +26,7 @@ function playerBaseRating(g) {
   const bike = b.performance * 0.35 + b.handling * 0.35 + b.starts * 0.15 + b.condition * 0.15;
   let rating = rider * 0.62 + bike * 0.23 + g.rider.confidence * 0.15;
   if (g.rider.injury && g.rider.injury.weeksOut > 0) rating -= 8;
+  if (g.flag('mud_ready')) rating += 4; // prepped for the conditions
   return rating;
 }
 
@@ -50,6 +51,12 @@ export class RaceSession {
   _buildField() {
     const g = this.game;
     const fieldShift = (this.race.field - 0.45) * 30;
+    // You race your peers. Center the field on an age-appropriate baseline that
+    // sits near the player's own ability, so racing is competitive at every age
+    // and your practice/upgrades/confidence move you up the order. A rider's
+    // stored rating (mean ~50) maps to a gap above/below that baseline, so the
+    // rival is genuinely faster and everyone keeps their relative pecking order.
+    const ageBaseline = 32 + (g.rider.age - 4) * 1.6;
     this.riders = [
       {
         id: 'player',
@@ -63,7 +70,7 @@ export class RaceSession {
         name: r.name,
         isPlayer: false,
         isRival: r.isRival,
-        base: Math.min(94, r.rating + fieldShift),
+        base: Math.max(12, Math.min(96, ageBaseline + (r.rating - 50) * 0.7 + fieldShift)),
         aggression: r.aggression,
       })),
     ];

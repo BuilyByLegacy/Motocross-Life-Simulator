@@ -183,14 +183,31 @@ button { font-family: inherit; }
 .podium .p-slot { flex: 1; text-align: center; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 4px; }
 .podium .p-slot.me { border-color: var(--amber); }
 
-/* ---- Market ---- */
-.listing { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 10px; background: var(--panel-2); }
-.listing .l-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
-.listing .price { color: var(--gold); font-weight: 700; font-size: 1.05rem; white-space: nowrap; }
-.listing .seller { font-size: 0.76rem; color: var(--ink-faint); }
-.listing .effect { font-size: 0.82rem; color: var(--green); margin-top: 4px; }
-.listing .rare { color: var(--gold); font-size: 0.72rem; border: 1px solid #6b5a20; border-radius: 999px; padding: 0 6px; }
-.listing-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+/* ---- Marketplace (Facebook-style) ---- */
+.mk-header { margin-bottom: 10px; }
+.mk-bar { display: flex; gap: 8px; align-items: center; }
+.mk-search { flex: 1; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; color: var(--ink-dim); font-size: 0.9rem; }
+.mk-wallet { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 9px 12px; font-weight: 700; color: var(--gold); white-space: nowrap; }
+.mk-titlebar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+
+.mk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mk-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; transition: 0.12s; }
+.mk-card:hover { border-color: var(--amber); transform: translateY(-1px); }
+.mk-thumb { position: relative; width: 100%; aspect-ratio: 1 / 1; display: grid; place-items: center; }
+.mk-thumb.big { aspect-ratio: 16 / 10; border-radius: 12px; margin-bottom: 10px; }
+.mk-emoji { font-size: 3.2rem; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4)); }
+.mk-thumb.big .mk-emoji { font-size: 5rem; }
+.mk-badge { position: absolute; top: 8px; left: 8px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.5px; color: #1a1206; background: var(--gold); border-radius: 6px; padding: 2px 6px; }
+.mk-info { padding: 8px 10px 10px; }
+.mk-price { font-weight: 800; font-size: 1.05rem; }
+.mk-title { font-size: 0.82rem; line-height: 1.25; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.mk-seller { font-size: 0.72rem; color: var(--ink-faint); margin-top: 3px; }
+
+.mk-detail .mk-d-price { font-size: 1.6rem; font-weight: 800; margin-top: 4px; }
+.mk-detail .seller { font-size: 0.8rem; color: var(--ink-faint); }
+.mk-detail .effect { font-size: 0.88rem; color: var(--green); margin: 8px 0; }
+.listing-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.listing-actions .btn { flex: 1; min-width: 130px; }
 
 /* ---- Memories / news ---- */
 .memory { border-left: 3px solid var(--gold); padding: 6px 0 6px 12px; margin-bottom: 12px; }
@@ -200,6 +217,12 @@ button { font-family: inherit; }
 .news-item { padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
 .news-item:last-child { border-bottom: 0; }
 .news-item .wk { color: var(--ink-faint); font-size: 0.76rem; }
+
+.history { display: flex; flex-direction: column; gap: 4px; }
+.history-row { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: baseline; font-size: 0.86rem; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.history-row:last-child { border-bottom: 0; }
+.history-row .hr-yr { color: var(--amber-2); font-weight: 600; }
+.history-row .hr-cl { color: var(--ink-faint); font-size: 0.78rem; }
 
 .hint { background: #1d2733; border: 1px solid #2c3a49; color: #bcd3e6; border-radius: 10px; padding: 10px 12px; font-size: 0.88rem; margin-bottom: 12px; }
 .empty { color: var(--ink-faint); font-style: italic; padding: 8px 0; }
