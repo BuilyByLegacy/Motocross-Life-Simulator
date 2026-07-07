@@ -1044,3 +1044,480 @@ export const SCENARIOS = [
     ],
   },
 ];
+
+// ===========================================================================
+// PARENT CAMPAIGN (DD-0012)
+// ---------------------------------------------------------------------------
+// A separate lens on the same season. You are the parent: you don't ride, you
+// provide. The focus is money, work, safety, family stress, the marriage, and
+// support decisions — and how the kid comes to feel about you.
+// ===========================================================================
+
+export const PEOPLE_PARENT = [
+  {
+    id: 'child',
+    name: 'your kid', // replaced with the rider's name at init
+    role: 'Child',
+    startValues: { love: 60, trust: 55, pride: 45, pressure: 25 },
+    arcStages: ['Your Little Shadow', 'Your Racer', 'Their Own Rider'],
+  },
+  {
+    id: 'spouse',
+    name: 'your partner',
+    role: 'Spouse',
+    startValues: { agreement: 55, communication: 55, strain: 20 },
+  },
+  {
+    id: 'coach_mike',
+    name: 'Coach Mike',
+    role: 'Coach',
+    startValues: { trust: 35, belief: 35, frustration: 15 },
+  },
+  {
+    id: 'rival_ethan',
+    name: 'the Cole kid',
+    role: 'Rival',
+    startValues: { respect: 30, rivalry: 40, friendship: 10 },
+  },
+  {
+    id: 'shop_rocky',
+    name: "Rocky's Cycle",
+    role: 'Local Shop',
+    startValues: { reputation: 25, loyalty: 30 },
+  },
+];
+
+export const ACTIVITIES_PARENT = [
+  {
+    id: 'work',
+    name: 'Work your shift',
+    icon: '💼',
+    desc: 'The paycheck that funds the whole dream.',
+    run(g) {
+      const earned = g.rng.int(120, 160);
+      g.addMoney(earned);
+      g.stress(5);
+      return `A normal week on the job. $${earned} toward the season.`;
+    },
+  },
+  {
+    id: 'overtime',
+    name: 'Pick up overtime',
+    icon: '🕗',
+    desc: 'More money for racing — at a cost to you and the marriage.',
+    run(g) {
+      const earned = g.rng.int(230, 290);
+      g.addMoney(earned);
+      g.stress(14);
+      g.rel('spouse').change('strain', 4);
+      return `Long hours, tired eyes. $${earned} earned — the family felt the absence.`;
+    },
+  },
+  {
+    id: 'family_time',
+    name: 'Family day (no bikes)',
+    icon: '🏡',
+    desc: 'Just be a family. Heals stress, the kid, and the marriage.',
+    run(g) {
+      g.stress(-12);
+      g.burnout(-10);
+      g.confidence(2);
+      g.rel('child').change('love', 3);
+      g.rel('spouse').change('communication', 3);
+      g.rel('spouse').change('strain', -3);
+      return 'A day that had nothing to do with results. Everyone needed it.';
+    },
+  },
+  {
+    id: 'practice',
+    name: 'Take them to the track',
+    icon: '🏍️',
+    desc: 'Load up and put in laps. The kid gets faster; the bike gets used.',
+    cost: 40,
+    run(g) {
+      g.skill('cornering', g.rng.int(1, 3));
+      g.skill('jumping', g.rng.int(1, 3));
+      g.skill('whoops', g.rng.int(0, 2));
+      g.confidence(3);
+      g.burnout(6);
+      g.bikeCondition(-9);
+      g.stress(4);
+      return 'A long day in a folding chair, stopwatch in hand. They looked good out there.';
+    },
+  },
+  {
+    id: 'wrench',
+    name: 'Wrench on it together',
+    icon: '🔧',
+    desc: 'Fix the bike side by side. Teaches the kid and builds trust.',
+    cost: 30,
+    run(g) {
+      g.bikeCondition(g.rng.int(16, 26));
+      g.bikeReliability(g.rng.int(3, 7));
+      g.skill('raceIQ', 1);
+      g.rel('child').change('trust', 3);
+      g.rel('child').change('pride', 1);
+      g.bikeMemoryMaybe('A parent and a kid, side by side under the work light.');
+      return 'You handed them the wrench and let them turn it. That matters more than the bolt.';
+    },
+  },
+  {
+    id: 'coaching',
+    name: 'Pay for coaching',
+    icon: '🧢',
+    desc: 'A real session with Coach Mike. Costs money; sharpens the kid.',
+    cost: 90,
+    run(g) {
+      g.skill('raceIQ', g.rng.int(1, 3));
+      g.skill('consistency', g.rng.int(1, 2));
+      g.confidence(3);
+      g.rel('coach_mike').change('belief', 4);
+      g.rel('coach_mike').change('trust', 3);
+      return 'Money well spent — the kid came off the track with a new line and a grin.';
+    },
+  },
+  {
+    id: 'rest',
+    name: 'Rest & regroup',
+    icon: '😌',
+    desc: 'Catch your breath. Lowers your stress and the kid\'s burnout.',
+    run(g) {
+      g.stress(-14);
+      g.burnout(-8);
+      g.rel('spouse').change('strain', -2);
+      if (g.rider.injury) g.rider.injury.weeksOut = Math.max(0, g.rider.injury.weeksOut - 1);
+      return 'A slow weekend. The engine — and the family — cooled down.';
+    },
+  },
+  {
+    id: 'side_gig',
+    name: 'Side gig for cash',
+    icon: '💵',
+    desc: 'Sell parts, detail trucks, whatever it takes. Extra money, extra tired.',
+    run(g) {
+      const earned = g.rng.int(90, 140);
+      g.addMoney(earned);
+      g.stress(6);
+      return `You hustled up $${earned} on the side. Every dollar buys another moto.`;
+    },
+  },
+];
+
+export const SCENARIOS_PARENT = [
+  {
+    id: 'p_kid_wants_part',
+    category: 'Money',
+    title: 'The Wish List',
+    once: false,
+    weight: (g) => (g.family.money > 300 ? 1.4 : 0.6),
+    text: (g) =>
+      `${g.rel('child').name} found a part online and has been talking about it for days. "Everyone fast runs one, Mom/Dad. Please?" Their eyes are doing the thing.`,
+    choices: [
+      {
+        label: 'Find the money for it',
+        tip: 'Kid love + confidence, but it costs',
+        effect(g) {
+          if (g.spend(150)) {
+            g.bike.performance += 6;
+            g.confidence(4);
+            g.rel('child').change('love', 5);
+            g.rel('spouse').change('strain', 2);
+            return 'You made it work. The way they hugged you made the empty wallet worth it.';
+          }
+          g.rel('child').change('love', -1);
+          return "You checked the account and it just wasn't there this week. They understood. Mostly.";
+        },
+      },
+      {
+        label: 'Teach them to wait',
+        tip: 'Save money; a lesson in patience',
+        effect(g) {
+          g.rel('child').change('pride', 1);
+          g.rel('child').change('love', -1);
+          g.rel('spouse').change('agreement', 2);
+          return '"We earn things in this family," you said. They didn\'t love it. They\'ll get it someday.';
+        },
+      },
+    ],
+  },
+  {
+    id: 'p_spouse_money',
+    category: 'Family',
+    title: 'The Kitchen Table',
+    once: false,
+    weight: (g) => (g.family.money < 500 || g.rel('spouse').get('strain') > 40 ? 2.4 : 0.7),
+    text: (g) =>
+      `After the kid's in bed, your partner spreads the bills on the table. "I love this for them. I do. But look at these numbers. We have to talk about it."`,
+    choices: [
+      {
+        label: 'Agree to scale back',
+        tip: 'Marriage + money, less for the kid',
+        effect(g) {
+          g.rel('spouse').change('strain', -8);
+          g.rel('spouse').change('communication', 5);
+          g.rel('child').change('pressure', -3);
+          g.setFlag('scaled_back', true);
+          g.addMoney(150);
+          return 'You agreed to a budget. It stung to say out loud, but the marriage exhaled.';
+        },
+      },
+      {
+        label: 'Push to keep going all-in',
+        tip: 'Kid keeps everything; marriage strains',
+        effect(g) {
+          g.rel('spouse').change('strain', 8);
+          g.rel('spouse').change('agreement', -5);
+          g.confidence(2);
+          g.stress(6);
+          return "You made the case to keep pushing. Your partner went quiet. The season rolls on — with a crack in it.";
+        },
+      },
+    ],
+  },
+  {
+    id: 'p_kid_burnout',
+    category: 'Health',
+    title: 'The Spark Dims',
+    once: false,
+    weight: (g) => (g.rider.burnout > 55 ? 3 : 0.3),
+    text: (g) =>
+      `${g.rel('child').name} dragged their gear bag to the truck without a word this morning. The kid who used to sleep in their boots doesn't seem to be having fun anymore.`,
+    choices: [
+      {
+        label: 'Ease off — let them be a kid',
+        tip: 'Burnout heals; progress pauses',
+        effect(g) {
+          g.burnout(-25);
+          g.rel('child').change('love', 5);
+          g.rel('child').change('pressure', -6);
+          g.confidence(4);
+          g.memory.record({
+            type: 'relationship',
+            title: 'You Listened',
+            summary: 'You saw the spark dimming and chose your kid over the stopwatch. They came back to it on their own.',
+            emotion: ['love', 'relief'],
+            people: ['child'],
+            tags: ['family_sacrifice', 'milestone'],
+            importance: 76,
+            force: true,
+          });
+          return 'You told them it was okay to take a breath. The relief on their face said everything.';
+        },
+      },
+      {
+        label: 'Push through it — champions are made here',
+        tip: 'Risk it; pressure and burnout climb',
+        effect(g) {
+          g.burnout(10);
+          g.rel('child').change('pressure', 8);
+          g.rel('child').change('love', -4);
+          g.rel('spouse').change('strain', 4);
+          g.setFlag('pushed_through', true);
+          return 'You told them to dig deep. They nodded and went back out. You hope you read that right.';
+        },
+      },
+    ],
+  },
+  {
+    id: 'p_safety_scare',
+    category: 'Injury',
+    title: 'The Big Crash',
+    once: false,
+    weight: (g) => (g.rider.fatigue > 45 || g.rng ? 1.3 : 1),
+    text: (g) =>
+      `${g.rel('child').name} looped out over the big tabletop at practice. They're okay — shaken, scraped, staring at the bike like it betrayed them. Your heart is still in your throat.`,
+    choices: [
+      {
+        label: 'Comfort them, call it a day',
+        tip: 'Morale recovers; safety first',
+        effect(g) {
+          g.confidence(-1);
+          g.burnout(-6);
+          g.rel('child').change('love', 4);
+          g.rel('child').change('trust', 3);
+          g.rel('spouse').change('agreement', 2);
+          return 'You held them in the pits until the shaking stopped. The lap times can wait.';
+        },
+      },
+      {
+        label: 'Get them back on before fear sets in',
+        tip: 'Old-school toughness — and a real risk',
+        effect(g) {
+          g.rel('spouse').change('strain', 5);
+          if (g.rng.chance(0.5)) {
+            g.confidence(5);
+            g.skill('jumping', 2);
+            return 'They rolled it, then jumped it, then cleared it. Fear beaten in real time. Good call — this time.';
+          }
+          g.rider.injury = { name: 'Bruised tailbone', weeksOut: 1, severity: 'minor' };
+          g.confidence(-5);
+          g.burnout(8);
+          return "They tried again, cased it, and limped off. Now they're hurt and rattled. That one's on you.";
+        },
+      },
+    ],
+  },
+  {
+    id: 'p_coach_offer',
+    category: 'Career',
+    title: "Coach Mike's Program",
+    once: true,
+    weight: (g) => (g.rel('coach_mike').get('belief') > 40 || g.family.money > 700 ? 2 : 0.5),
+    text: (g) =>
+      `Coach Mike pulls you aside. "Your kid's got something. I'm starting a small weekday group — serious kids only. It's an investment, but I think they're worth it."`,
+    choices: [
+      {
+        label: 'Enroll them (worth it)',
+        tip: 'Big skill boost; ongoing cost',
+        effect(g) {
+          if (g.spend(200)) {
+            g.skill('raceIQ', 4);
+            g.skill('consistency', 3);
+            g.skill('cornering', 2);
+            g.rel('coach_mike').change('belief', 8);
+            g.rel('coach_mike').change('trust', 6);
+            g.confidence(4);
+            g.setFlag('in_coaching_program', true);
+            return 'You wrote the check. It\'s real money — and the first time someone outside the family believed.';
+          }
+          return "You wanted to say yes. The account said no. Coach said the door stays open.";
+        },
+      },
+      {
+        label: 'Not right now',
+        tip: 'Protect the budget',
+        effect(g) {
+          g.rel('coach_mike').change('frustration', 3);
+          return 'You thanked him and said maybe down the road. He nodded, a little disappointed.';
+        },
+      },
+    ],
+  },
+  {
+    id: 'p_sibling',
+    category: 'Family',
+    title: 'The Other One',
+    once: true,
+    weight: () => 1.1,
+    text: (g) =>
+      `Your younger one asked, quietly, why every weekend is about ${g.rel('child').name}'s racing. It landed harder than they meant it to.`,
+    choices: [
+      {
+        label: 'Carve out time for them too',
+        tip: 'Family balance; a little less racing focus',
+        effect(g) {
+          g.stress(-6);
+          g.rel('spouse').change('communication', 4);
+          g.setFlag('balanced_siblings', true);
+          return 'You made the next weekend theirs. The racer even helped plan it. Good parenting is a juggling act.';
+        },
+      },
+      {
+        label: 'Keep the focus on the racer',
+        tip: 'Racing progresses; guilt lingers',
+        effect(g) {
+          g.rel('spouse').change('strain', 4);
+          g.stress(5);
+          return 'The season demanded it, so you chose it. That look on your younger one\'s face stayed with you.';
+        },
+      },
+    ],
+  },
+  {
+    id: 'p_shop_offer',
+    category: 'Sponsor',
+    title: "Rocky's Board",
+    once: true,
+    weight: (g) =>
+      g.family.support_level === 0 && (g.season.points > 5 || g.rel('shop_rocky').get('reputation') > 35) ? 4 : 0,
+    text: (g) =>
+      `Rocky waves you over. "Your kid's turning heads. Put 'em on our support board — oil, filters, jerseys at cost. Good for them, good for the shop."`,
+    choices: [
+      {
+        label: 'Shake on it',
+        tip: 'Support Level 1; ongoing help',
+        effect(g) {
+          g.setSupportLevel(1);
+          g.rel('shop_rocky').change('loyalty', 8);
+          g.rel('child').change('pride', 5);
+          g.addMoney(60);
+          g.memory.record({
+            type: 'world',
+            title: 'First Support Deal',
+            summary: "You got your kid on Rocky's board of supported riders — the first rung up the ladder.",
+            emotion: ['pride'],
+            tags: ['sponsor', 'milestone', 'support_ladder'],
+            importance: 70,
+            force: true,
+          });
+          return "Their name's on the board now. It's oil and jerseys, not a factory ride — but you earned it for them.";
+        },
+      },
+      {
+        label: 'Keep it in the family for now',
+        tip: 'Stay independent',
+        effect(g) {
+          g.rel('shop_rocky').change('reputation', 1);
+          return 'You thanked him and said maybe later. No strings, for now.';
+        },
+      },
+    ],
+  },
+  {
+    id: 'p_travel_far',
+    category: 'Travel',
+    title: 'The Away Race',
+    once: false,
+    weight: (g) => (g.week >= 5 && g.week <= 9 ? 1.5 : 0.3),
+    text: () =>
+      `There's a bigger race three hours away this month — tougher field, better exposure. Hotel, fuel, entries... it adds up fast.`,
+    choices: [
+      {
+        label: 'Load the truck and go',
+        tip: 'Kid grows from tough competition; costs money + you',
+        effect(g) {
+          if (g.spend(180)) {
+            g.skill('raceIQ', 3);
+            g.skill('consistency', 2);
+            g.confidence(3);
+            g.stress(8);
+            g.burnout(4);
+            return 'You drove through the night and slept in the truck. The kid raced up a level. Worth it.';
+          }
+          return "The budget said no this time. You told the kid there'd be other races. There will.";
+        },
+      },
+      {
+        label: 'Stay local, save the money',
+        tip: 'Protect the budget and the family',
+        effect(g) {
+          g.addMoney(40);
+          g.stress(-3);
+          return 'You kept it local this weekend. Sometimes the smart call is the boring one.';
+        },
+      },
+    ],
+  },
+  // Quiet weeks
+  {
+    id: 'p_quiet',
+    category: 'Family',
+    title: 'An Ordinary Week',
+    once: false,
+    weight: () => 0.9,
+    text: (g) =>
+      `No drama this week. Homework, dinner, the bike waiting in the garage. ${g.rel('child').name} seems happy. So do you.`,
+    choices: [
+      {
+        label: 'Just breathe',
+        tip: 'A calm week',
+        effect(g) {
+          g.stress(-6);
+          g.burnout(-4);
+          g.rel('spouse').change('communication', 2);
+          return 'Nothing happened, and it was wonderful. These are the weeks you\'ll miss.';
+        },
+      },
+    ],
+  },
+];

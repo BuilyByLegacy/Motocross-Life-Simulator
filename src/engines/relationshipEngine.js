@@ -68,6 +68,17 @@ export class Relationship {
         if ((v.loyalty ?? 0) > 55) return 'Rocky slides you the good tires and waves off the markup.';
         if ((v.reputation ?? 0) > 45) return 'Rocky\'s starting to brag about "his" fast kid.';
         return 'Rocky knows your face, not your name.';
+      case 'Child':
+        if ((v.pressure ?? 0) > 60) return '"Do I have to ride this weekend?"';
+        if ((v.love ?? 0) > 68) return '"You\'re the best. I love that we do this together."';
+        if ((v.trust ?? 0) > 62) return '"Did you see me out there?! Did you see it?"';
+        if ((v.love ?? 0) < 35) return 'They mostly ride in silence these days.';
+        return '"Can we get to the track early on Saturday?"';
+      case 'Spouse':
+        if ((v.strain ?? 0) > 60) return '"We need to talk about the money. Again."';
+        if ((v.agreement ?? 0) > 62 && (v.strain ?? 0) < 30) return '"We\'re a good team, you and me."';
+        if ((v.communication ?? 0) > 60) return '"Whatever you decide, we\'ll figure it out together."';
+        return '"Just... keep them safe out there, okay?"';
       default:
         return '';
     }
@@ -87,6 +98,17 @@ export class Relationship {
   }
 }
 
+// A do-nothing relationship for ids not present in the current campaign.
+const NULL_RELATIONSHIP = {
+  rec: { values: {}, role: null, arcStage: null },
+  get name() { return ''; },
+  get() { return 0; },
+  change() { return this; },
+  warmth() { return 50; },
+  describe() { return ''; },
+  updateArc() { return null; },
+};
+
 export class RelationshipEngine {
   constructor(game) {
     this.game = game;
@@ -95,6 +117,10 @@ export class RelationshipEngine {
   of(id) {
     if (!this._cache.has(id)) {
       const rec = this.game.state.relationships[id];
+      // Some shared code references People that don't exist in the current
+      // campaign (e.g. a rider-mode scenario in Parent mode). Return a safe
+      // no-op relationship rather than crashing.
+      if (!rec) return NULL_RELATIONSHIP;
       this._cache.set(id, new Relationship(rec));
     }
     return this._cache.get(id);

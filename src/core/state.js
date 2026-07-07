@@ -4,7 +4,7 @@
 // be serialized (save/load) and inspected. Engines never store their own copy
 // of the world; they read and mutate this.
 
-import { PEOPLE, BIKE_FOR_CLASS, CLASS_FOR_AGE } from '../data/content.js';
+import { PEOPLE, PEOPLE_PARENT, BIKE_FOR_CLASS, CLASS_FOR_AGE } from '../data/content.js';
 
 let _uid = 0;
 export function uid(prefix = 'id') {
@@ -19,18 +19,20 @@ export function ageSkillFactor(age) {
   return Math.max(0.45, Math.min(1.15, 0.55 + (age - 4) * 0.07));
 }
 
-export function createInitialState(riderName = 'Riley', seed = Date.now(), birthdate = '2022-05-15') {
+export function createInitialState(riderName = 'Riley', seed = Date.now(), birthdate = '2022-05-15', campaign = 'rider') {
   const birthYear = parseInt(String(birthdate).slice(0, 4), 10) || CURRENT_YEAR - 4;
   const startYear = CURRENT_YEAR;
   const age = Math.max(3, startYear - birthYear);
   const klass = CLASS_FOR_AGE(age);
   const f = ageSkillFactor(age);
   const sk = (n) => Math.round(n * f);
+  const people = campaign === 'parent' ? PEOPLE_PARENT : PEOPLE;
   const relationships = {};
-  for (const p of PEOPLE) {
+  for (const p of people) {
     relationships[p.id] = {
       id: p.id,
-      name: p.name,
+      // In Parent mode the "child" person is named after the rider.
+      name: p.id === 'child' ? riderName : p.name,
       role: p.role,
       // Hidden values, expressed through behavior (Relationship Engine).
       values: { ...p.startValues },
@@ -60,8 +62,9 @@ export function createInitialState(riderName = 'Riley', seed = Date.now(), birth
         consistency: sk(40),
         fitness: sk(45),
       },
-      confidence: 50, // 0-100, volatile
+      confidence: 50, // 0-100, volatile (the kid's morale, in Parent mode)
       fatigue: 0, // 0-100, higher = worse
+      burnout: 0, // 0-100, Parent-mode: how worn-down on racing the kid is
       injury: null, // { name, weeksOut, severity }
     },
 
