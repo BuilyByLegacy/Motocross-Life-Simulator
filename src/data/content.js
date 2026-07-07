@@ -384,6 +384,7 @@ export const SCENARIOS = [
     category: 'Family',
     title: 'The 2 A.M. Engine',
     once: true,
+    careerOnce: true,
     weight: (g) => (g.bike.condition < 70 ? 3 : 1.2),
     text: (g) =>
       `It's late. ${g.rel('dad').name} has the KX65 up on the stand, parts spread across a towel. "Top-end's tired," he says. "We could knock it out tonight — together — if you're up for it."`,
@@ -410,6 +411,7 @@ export const SCENARIOS = [
             force: true,
           });
           g.bikeMemoryMaybe('Dad and the kid rebuilt this engine together, past midnight.', true);
+          g.scheduleChain('dad_toolbox', 3);
           return 'You handed him wrenches and learned where every bolt goes. The bike runs like new. You will not forget this one.';
         },
       },
@@ -494,6 +496,7 @@ export const SCENARIOS = [
     category: 'Sponsor',
     title: "Rocky's Offer",
     once: true,
+    careerOnce: true,
     weight: (g) =>
       g.family.support_level === 0 && (g.season.points > 5 || g.rel('shop_rocky').get('reputation') > 35) ? 4 : 0,
     text: (g) =>
@@ -517,6 +520,7 @@ export const SCENARIOS = [
             importance: 70,
             force: true,
           });
+          g.scheduleChain('shop_expectations', 2);
           return "You're a Local Shop Rider now. It's oil and jerseys, not a factory ride — but it's real, and it's yours.";
         },
       },
@@ -644,6 +648,7 @@ export const SCENARIOS = [
             importance: 68,
             force: true,
           });
+          g.scheduleChain('dad_tired', 2);
           return 'Dad took the extra shifts. The season is safe — but he looks tired, and you carry that with you.';
         },
       },
@@ -666,6 +671,7 @@ export const SCENARIOS = [
     category: 'Coach',
     title: 'Coach Pulls You Aside',
     once: true,
+    careerOnce: true,
     weight: (g) =>
       g.rel('coach_mike').get('belief') < 55 && (g.season.points > 8 || g.rider.confidence > 60) ? 3 : 0.5,
     text: (g) =>
@@ -759,6 +765,203 @@ export const SCENARIOS = [
           g.setFlag('scout_watching', true);
           g.confidence(1);
           return 'You told yourself it\'s just a race like any other. Mostly, you believed it.';
+        },
+      },
+    ],
+  },
+  // --- Chain follow-ups (only surface when scheduled by an earlier choice) ---
+  {
+    id: 'dad_toolbox',
+    category: 'Family',
+    title: "Dad's Toolbox",
+    chainOnly: true,
+    weight: () => 0,
+    text: (g) =>
+      `A few weeks after the rebuild, ${g.rel('dad').name} slides his old toolbox across the bench. "You know where everything goes now. Keep it organized and it's yours to run."`,
+    choices: [
+      {
+        label: 'Take the responsibility',
+        tip: 'A milestone — and a lasting object',
+        effect(g) {
+          g.skill('raceIQ', 2);
+          g.rel('dad').change('trust', 6);
+          g.rel('dad').change('pride', 3);
+          g.garage.objects.push({ name: "Dad's toolbox", memory: 'Handed down after the night you rebuilt the engine together.' });
+          g.memory.record({
+            type: 'object',
+            title: "Dad's Toolbox",
+            summary: "Dad handed you his toolbox — a quiet promotion from helper to mechanic.",
+            emotion: ['pride', 'responsibility'],
+            people: ['dad'],
+            tags: ['garage', 'milestone', 'heirloom'],
+            importance: 74,
+            force: true,
+          });
+          return "It's just a beat-up toolbox. It's also the most important thing anyone's ever handed you.";
+        },
+      },
+    ],
+  },
+  {
+    id: 'shop_expectations',
+    category: 'Sponsor',
+    title: "Rocky's Expectations",
+    chainOnly: true,
+    weight: () => 0,
+    text: () =>
+      `Rocky corners you at the counter, friendly but pointed. "Got your name on our board now. Folks'll be watching how the shop's kid finishes. No pressure — but, you know. A little pressure."`,
+    choices: [
+      {
+        label: 'Embrace it',
+        tip: 'Confidence + shop loyalty, a little pressure',
+        effect(g) {
+          g.confidence(4);
+          g.stress(4);
+          g.rel('shop_rocky').change('loyalty', 5);
+          return 'You told him you\'d make the board look good. Now you have to.';
+        },
+      },
+      {
+        label: 'Keep it low-key',
+        tip: 'Less pressure, steady relationship',
+        effect(g) {
+          g.stress(-2);
+          g.rel('shop_rocky').change('loyalty', 1);
+          return 'You just want to ride. Rocky respects that, mostly.';
+        },
+      },
+    ],
+  },
+  {
+    id: 'dad_tired',
+    category: 'Family',
+    title: 'The Cost of Overtime',
+    chainOnly: true,
+    weight: () => 0,
+    text: (g) =>
+      `${g.rel('dad').name} fell asleep in his chair before dinner again. The overtime is paying for your season — and it's wearing him down.`,
+    choices: [
+      {
+        label: 'Give him the weekend off racing',
+        tip: 'Family over results; Dad recovers, you miss track time',
+        effect(g) {
+          g.stress(-12);
+          g.rel('dad').change('support', 4);
+          g.rel('dad').change('trust', 4);
+          g.rel('mom').change('trust', 4);
+          g.confidence(-1);
+          g.memory.record({
+            type: 'relationship',
+            title: 'You Gave Dad a Weekend',
+            summary: "You told Dad to skip the track and rest. He argued, then hugged you.",
+            emotion: ['love', 'maturity'],
+            people: ['dad'],
+            tags: ['family_sacrifice', 'milestone'],
+            importance: 70,
+            force: true,
+          });
+          return "The bike sat in the garage all weekend. It was the right call, and you both knew it.";
+        },
+      },
+      {
+        label: 'Push on — the season waits for no one',
+        tip: 'More prep, more strain on the family',
+        effect(g) {
+          g.skill('cornering', 1);
+          g.stress(8);
+          g.rel('dad').change('support', 2);
+          g.rel('mom').change('fear', 3);
+          return "You kept the program rolling. Dad never complained. That almost made it worse.";
+        },
+      },
+    ],
+  },
+  // --- More standalone believable beats ---
+  {
+    id: 'weather_mud',
+    category: 'Weather',
+    title: 'Rain in the Forecast',
+    once: false,
+    weight: (g) => (g.isRaceWeek && g.isRaceWeek() ? 1.6 : 0.2),
+    text: () =>
+      `The forecast for the weekend just turned ugly — heavy rain, a mud race almost certain. Some kids are already talking about staying home.`,
+    choices: [
+      {
+        label: 'Prep for the mud',
+        tip: 'Better in bad conditions this weekend',
+        effect(g) {
+          g.skill('whoops', 2);
+          g.setFlag('mud_ready', true);
+          g.bikeReliability(-1);
+          return 'You cut the fenders, aired down, and mudded up the airbox. Bring it on.';
+        },
+      },
+      {
+        label: 'Hope it dries out',
+        tip: 'Do nothing special',
+        effect(g) {
+          return 'You crossed your fingers and left the setup alone.';
+        },
+      },
+    ],
+  },
+  {
+    id: 'new_fast_kid',
+    category: 'World',
+    title: 'The New Kid',
+    once: true,
+    weight: (g) => (g.week >= 4 && g.week <= 9 ? 1.4 : 0),
+    text: () =>
+      `There's a new kid showing up to the local track with a full factory-support setup and a trainer. Word is the family moved here just for the racing.`,
+    choices: [
+      {
+        label: 'Study how they ride',
+        tip: 'Learn from the fast kid; a little intimidation',
+        effect(g) {
+          g.skill('raceIQ', 2);
+          g.confidence(-2);
+          g.world.rival().rating = Math.min(94, g.world.rival().rating + 2);
+          return "You watched their lines all afternoon. Humbling — and useful.";
+        },
+      },
+      {
+        label: 'Trust your own program',
+        tip: 'Stay confident in your path',
+        effect(g) {
+          g.confidence(3);
+          return "Nice bike. You'll race the rider, not the budget.";
+        },
+      },
+    ],
+  },
+  {
+    id: 'grades_slip',
+    category: 'School',
+    title: 'A Slipping Grade',
+    once: false,
+    weight: (g) => (!g.flag('grades_good') && g.week >= 5 ? 1.3 : 0),
+    text: () =>
+      `A test came back rough. Nothing disastrous, but if it keeps sliding, the racing conversation at home is going to get harder.`,
+    choices: [
+      {
+        label: 'Buckle down on schoolwork',
+        tip: 'Fixes it; Mom trust up; costs some focus',
+        effect(g) {
+          g.setFlag('grades_good', true);
+          g.rel('mom').change('trust', 4);
+          g.rel('mom').change('fear', -2);
+          g.fatigue(4);
+          return 'You put in the hours and pulled it back up. Mom exhaled.';
+        },
+      },
+      {
+        label: 'Let it ride for now',
+        tip: 'Risk it; Mom worries',
+        effect(g) {
+          g.rel('mom').change('fear', 4);
+          g.rel('mom').change('trust', -3);
+          g.stress(4);
+          return 'You told yourself you\'d fix it later. Mom noticed you didn\'t.';
         },
       },
     ],

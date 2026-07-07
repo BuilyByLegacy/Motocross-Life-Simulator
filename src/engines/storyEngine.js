@@ -12,14 +12,30 @@ import { SCENARIOS } from '../data/content.js';
 export class StoryEngine {
   constructor(game) {
     this.game = game;
-    this.used = new Set();
+    this.used = new Set(); // per-season
+    this.usedCareer = new Set(); // persists across seasons
+  }
+
+  byId(id) {
+    return SCENARIOS.find((s) => s.id === id);
   }
 
   // Pick the next believable scenario, or null for a quiet week.
+  // Scheduled chain follow-ups take priority over fresh cards.
   pick() {
     const g = this.game;
+    const queue = g.state.chainQueue;
+    const dueIdx = queue.findIndex((c) => c.dueWeek <= g.week);
+    if (dueIdx >= 0) {
+      const [due] = queue.splice(dueIdx, 1);
+      const sc = this.byId(due.scenarioId);
+      if (sc) return sc;
+    }
+
     const eligible = SCENARIOS.filter((s) => {
+      if (s.chainOnly) return false;
       if (s.once && this.used.has(s.id)) return false;
+      if (s.careerOnce && this.usedCareer.has(s.id)) return false;
       const w = s.weight ? s.weight(g) : 1;
       return w > 0;
     });
@@ -52,7 +68,14 @@ export class StoryEngine {
   }
 
   markUsed(scenario) {
-    if (scenario) this.used.add(scenario.id);
+    if (!scenario) return;
+    this.used.add(scenario.id);
+    if (scenario.careerOnce) this.usedCareer.add(scenario.id);
+  }
+
+  // Reset per-season memory of used cards (career-once cards persist).
+  newSeason() {
+    this.used = new Set();
   }
 
   // Auto-resolution policy for simulated (non-detailed) play. Picks the choice

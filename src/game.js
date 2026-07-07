@@ -63,7 +63,6 @@ export class Game {
 
     this.currentRace = null;
     this._weekLog = null;
-    this._preparedWeek = 0;
 
     // Seed an initial marketplace.
     this.market.refresh(true);
@@ -120,6 +119,39 @@ export class Game {
     }
   }
 
+  // Schedule a follow-up scenario to surface `inWeeks` from now (story chains).
+  scheduleChain(scenarioId, inWeeks = 2) {
+    this.state.chainQueue.push({ dueWeek: this.week + inWeeks, scenarioId });
+  }
+
+  // ---- save / load ---------------------------------------------------------
+  // State is plain data; a few engines hold state outside it (RNG position,
+  // the story "used" sets, the simulated rival field), so capture those too.
+  toSave() {
+    return {
+      v: 2,
+      seed: this.rng.seed,
+      rngS: this.rng._s,
+      state: this.state,
+      storyUsed: [...this.story.used],
+      storyCareer: [...this.story.usedCareer],
+      world: { riders: this.world.riders, newsIdx: this.world._newsIdx },
+    };
+  }
+
+  static load(save) {
+    const g = new Game({ riderName: save.state.rider.name, depth: save.state.simDepth, seed: save.seed });
+    g.state = save.state;
+    g.rng.seed = save.seed;
+    g.rng._s = save.rngS;
+    g.story.used = new Set(save.storyUsed ?? []);
+    g.story.usedCareer = new Set(save.storyCareer ?? []);
+    g.world.riders = save.world.riders;
+    g.world._newsIdx = save.world.newsIdx;
+    g.relationships._cache = new Map(); // re-wrap the loaded relationship records
+    return g;
+  }
+
   // ---- weekly loop ---------------------------------------------------------
   meta(week = this.week) {
     return CALENDAR.find((c) => c.week === week);
@@ -133,8 +165,8 @@ export class Game {
 
   // Start-of-week world ticks. Idempotent per week.
   prepareWeek() {
-    if (this._preparedWeek === this.week) return;
-    this._preparedWeek = this.week;
+    if (this.state._preparedWeek === this.week) return;
+    this.state._preparedWeek = this.week;
     this._weekLog = { week: this.week, title: this.meta()?.title ?? `Week ${this.week}`, lines: [] };
 
     // Injuries heal over time.
@@ -310,9 +342,84 @@ export class Game {
       this.garage.trophies.push({ name: `${ordinal(overall)} Overall — ${result.race.name}`, week: this.week });
     }
 
+    this.setFlag('mud_ready', false); // conditions prep is spent
+
     this.log(`🏁 ${result.race.name}: ${result.dnf ? 'DNF' : ordinal(overall) + ' overall'} (+${result.points} pts).`);
     this.currentRace = null;
     return result;
+  }
+
+  // ---- multi-season career -------------------------------------------------
+  // Class progression by age (youth motocross ladder).
+  classForAge(age) {
+    if (age <= 8) return '65cc';
+    if (age <= 11) return '65cc';
+    if (age <= 13) return '85cc';
+    return 'Supermini';
+  }
+
+  // Summarize the season just finished into the career record.
+  archiveSeason() {
+    const s = this.state.season;
+    const results = s.results;
+    this.state.careerHistory.push({
+      season: this.state.seasonNumber,
+      age: this.rider.age,
+      klass: this.rider.klass,
+      points: s.points,
+      bestFinish: s.bestFinish,
+      wins: results.filter((r) => r.overall === 1).length,
+      podiums: results.filter((r) => r.overall <= 3 && !r.dnf).length,
+      races: results.length,
+      supportLevel: this.family.support_level,
+      topMemory: this.memory.top(1)[0]?.title ?? null,
+    });
+  }
+
+  // Season-scoped flags that should reset each year; everything else persists
+  // (has_practice_bike, has_chest_protector, earned_own_money, etc.).
+  static SEASON_FLAGS = [
+    'grades_good', 'had_race', 'had_win', 'had_podium', 'scout_watching',
+    'ethan_got_fast', 'promised_school', 'chipped_in', 'will_prove_ethan', 'mud_ready',
+  ];
+
+  startNextSeason() {
+    this.archiveSeason();
+
+    // Age up, progress class, carry the person forward.
+    this.rider.age += 1;
+    this.rider.klass = this.classForAge(this.rider.age);
+    this.state.seasonNumber += 1;
+
+    // A new season resets the calendar clock but keeps the life.
+    this.state.week = 1;
+    this.state._preparedWeek = 0;
+    this.state.season = { results: [], points: 0, bestFinish: null };
+    this.state.schedule = [];
+    this.state.pendingScenario = null;
+    this.state.chainQueue = [];
+    this.state.news = [];
+
+    // Reset season flags; keep persistent ones.
+    for (const f of Game.SEASON_FLAGS) delete this.state.flags[f];
+
+    // Recover the body over the off-season; confidence settles toward baseline.
+    this.rider.fatigue = Math.max(0, this.rider.fatigue - 40);
+    this.rider.injury = null;
+    this.rider.confidence = Math.round(45 + (this.rider.confidence - 45) * 0.5);
+    this.family.stress = Math.max(0, this.family.stress - 15);
+
+    // The bike ages a year; a growing rider may need to move up next year.
+    this.bikeCondition(-6);
+
+    // Rivals kept improving in the off-season (World never sleeps).
+    for (const r of this.world.riders) {
+      r.rating = Math.min(94, r.rating + this.rng.range(2, 5));
+    }
+    this.story.newSeason();
+
+    this.addNews(`A new season begins. ${this.rider.name} is ${this.rider.age} now, riding ${this.rider.klass}.`, 'world');
+    this.bus.emit('season:started', { season: this.state.seasonNumber, week: 1 });
   }
 
   // ---- advance -------------------------------------------------------------

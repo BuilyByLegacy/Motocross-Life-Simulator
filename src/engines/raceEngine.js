@@ -26,6 +26,7 @@ function playerBaseRating(g) {
   const bike = b.performance * 0.35 + b.handling * 0.35 + b.starts * 0.15 + b.condition * 0.15;
   let rating = rider * 0.62 + bike * 0.23 + g.rider.confidence * 0.15;
   if (g.rider.injury && g.rider.injury.weeksOut > 0) rating -= 8;
+  if (g.flag('mud_ready')) rating += 4; // prepped for the conditions
   return rating;
 }
 

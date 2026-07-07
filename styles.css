@@ -201,6 +201,12 @@ button { font-family: inherit; }
 .news-item:last-child { border-bottom: 0; }
 .news-item .wk { color: var(--ink-faint); font-size: 0.76rem; }
 
+.history { display: flex; flex-direction: column; gap: 4px; }
+.history-row { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: baseline; font-size: 0.86rem; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.history-row:last-child { border-bottom: 0; }
+.history-row .hr-yr { color: var(--amber-2); font-weight: 600; }
+.history-row .hr-cl { color: var(--ink-faint); font-size: 0.78rem; }
+
 .hint { background: #1d2733; border: 1px solid #2c3a49; color: #bcd3e6; border-radius: 10px; padding: 10px 12px; font-size: 0.88rem; margin-bottom: 12px; }
 .empty { color: var(--ink-faint); font-style: italic; padding: 8px 0; }
 

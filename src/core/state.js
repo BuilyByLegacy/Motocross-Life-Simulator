@@ -87,5 +87,13 @@ export function createInitialState(riderName = 'Riley', seed = Date.now()) {
     pendingScenario: null,
     lastRace: null, // transient race result for the race screen
     logbook: [], // human-readable week-by-week diary for the recap
+
+    // ---- multi-week / multi-season / campaign scaffolding ----
+    campaign: 'rider', // 'rider' | 'parent' (DD-0012)
+    seasonNumber: 1,
+    _preparedWeek: 0, // guards once-per-week setup across save/load
+    chainQueue: [], // scheduled follow-up scenarios: { dueWeek, scenarioId }
+    careerHistory: [], // one entry per completed season
   };
 }
+
