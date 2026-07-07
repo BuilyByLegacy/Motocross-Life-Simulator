@@ -76,6 +76,8 @@ export class App {
   renderTitle() {
     let name = 'Riley';
     let depth = 'detailed';
+    const thisYear = new Date().getFullYear();
+    let birthdate = `${thisYear - 4}-05-15`; // default: rider turns 4 this year
 
     const depthCards = Object.values(SIM_DEPTHS).map((d) =>
       el('div', {
@@ -93,13 +95,30 @@ export class App {
 
     const nameInput = el('input', { value: name, maxlength: '14', oninput: (e) => (name = e.target.value.trim() || 'Riley') });
 
+    const ageHint = el('span', { class: 'faint small' });
+    const updateAgeHint = () => {
+      const by = parseInt(String(birthdate).slice(0, 4), 10);
+      const age = Math.max(3, thisYear - by);
+      const klass = age <= 6 ? '50cc' : age <= 11 ? '65cc' : age <= 13 ? '85cc' : 'Supermini';
+      ageHint.textContent = `Starts ${thisYear} at age ${age} on a ${klass}. The career grows year by year.`;
+    };
+    const birthdayInput = el('input', {
+      type: 'date',
+      value: birthdate,
+      min: `${thisYear - 8}-01-01`,
+      max: `${thisYear - 3}-12-31`,
+      oninput: (e) => { birthdate = e.target.value || birthdate; updateAgeHint(); },
+    });
+    updateAgeHint();
+
     const save = this.loadSave();
     const continueCard = save ? el('div', { class: 'card' },
       el('div', { class: 'eyebrow' }, 'Saved career'),
       el('h2', {}, save.state.rider.name + ', age ' + save.state.rider.age),
       el('p', { class: 'small muted' },
-        `Season ${save.state.seasonNumber ?? 1} · Week ${Math.min(save.state.week, 12)}/12 · ` +
-        `${save.state.season.points} pts · ${(save.state.campaign === 'parent') ? 'Parent' : 'Rider'} campaign`),
+        `${(save.state.startYear ?? new Date().getFullYear()) + (save.state.seasonNumber ?? 1) - 1} season · ` +
+        `Week ${Math.min(save.state.week, 12)}/12 · ${save.state.season.points} pts · ` +
+        `${(save.state.campaign === 'parent') ? 'Parent' : 'Rider'} campaign`),
       el('button', { class: 'btn primary wide', onclick: () => this.continueGame() }, 'Continue Career →'),
     ) : null;
 
@@ -119,19 +138,24 @@ export class App {
           nameInput,
         ),
         el('div', { class: 'field' },
+          el('label', {}, "Rider's birthday"),
+          birthdayInput,
+          el('div', { style: 'margin-top:6px' }, ageHint),
+        ),
+        el('div', { class: 'field' },
           el('label', {}, 'Simulation depth — how much do you want to live yourself?'),
           el('div', { class: 'depth-grid' }, ...depthCards),
         ),
-        el('button', { class: 'btn primary wide', onclick: () => this.startGame({ name, depth }) }, 'Start the Season'),
+        el('button', { class: 'btn primary wide', onclick: () => this.startGame({ name, depth, birthdate }) }, `Begin — ${thisYear} Season`),
       ),
       el('p', { class: 'faint small center' }, 'Prototype v0.1 · Legacy Studios · Build memories, not mechanics.'),
     );
     this.root.replaceChildren(view);
   }
 
-  startGame({ name, depth }) {
+  startGame({ name, depth, birthdate }) {
     this.clearSave(); // a fresh life replaces any prior save
-    this.game = new Game({ riderName: name, depth, seed: Date.now() });
+    this.game = new Game({ riderName: name, depth, birthdate, seed: Date.now() });
     this.tab = 'week';
     this.startWeek();
   }
@@ -156,9 +180,9 @@ export class App {
     const meta = g.meta() ?? { title: 'Season Over' };
     const supportLabels = ['Family Supported', 'Local Shop Rider', 'Dealer Supported', 'Regional Support'];
     return el('div', { class: 'topbar' },
-      el('div', { class: 'brand' }, 'Legacy: Motocross ', el('small', {}, '· ' + g.rider.name)),
+      el('div', { class: 'brand' }, g.rider.name, el('small', {}, ` · age ${g.rider.age} · ${g.rider.klass}`)),
       el('div', {},
-        el('span', { class: 'badge amber' }, `S${g.state.seasonNumber} · Wk ${Math.min(g.week, 12)}/12 · ${meta.title}`),
+        el('span', { class: 'badge amber' }, `${g.seasonYear} · Wk ${Math.min(g.week, 12)}/12`),
         ' ',
         el('span', { class: 'badge' }, SIM_DEPTHS[g.state.simDepth].label),
         ' ',
@@ -187,6 +211,7 @@ export class App {
         meterVal != null ? this.meter(meterVal, invert) : null,
       );
     return el('div', { class: 'stats' },
+      stat('Age', r.age),
       stat('Money', '$' + g.family.money.toLocaleString()),
       stat('Confidence', r.confidence, r.confidence),
       stat('Fatigue', r.fatigue, r.fatigue, true),
@@ -597,39 +622,84 @@ export class App {
     );
   }
 
+  // Emoji + gradient "photo" per item — offline-safe listing images.
+  itemThumb(listing, big = false) {
+    const art = {
+      mx33: ['🛞', '#3a3d44,#20232a'],
+      holeshot: ['🚦', '#2c3a2f,#1c2620'],
+      pipe: ['💨', '#3a2f24,#241d16'],
+      topend: ['⚙️', '#2f3540,#1e232b'],
+      chest: ['🦺', '#3a3320,#242015'],
+      susp: ['🔧', '#26333d,#182027'],
+      practicebike: ['🏍️', '#33241f,#211713'],
+      plate: ['🏁', '#3a3624,#242113'],
+    };
+    const [emoji, grad] = art[listing.key] ?? ['📦', '#2e333b,#1d2129'];
+    return el('div', {
+      class: 'mk-thumb' + (big ? ' big' : ''),
+      style: `background:linear-gradient(150deg, ${grad});`,
+    },
+      el('span', { class: 'mk-emoji' }, emoji),
+      listing.rare ? el('span', { class: 'mk-badge' }, 'RARE') : null,
+    );
+  }
+
   renderMarket() {
     const g = this.game;
     const listings = g.market.listings;
-    const rows = listings.length
-      ? listings.map((l) =>
-          el('div', { class: 'listing' },
-            el('div', { class: 'l-top' },
-              el('div', {},
-                el('b', {}, l.name), l.rare ? el('span', { class: 'rare' }, ' RARE') : null,
-                el('div', { class: 'seller' }, `Seller: ${l.seller}`),
+    const detail = listings.find((l) => l.id === this._marketDetail);
+
+    const header = el('div', { class: 'mk-header' },
+      el('div', { class: 'mk-bar' },
+        el('div', { class: 'mk-search' }, '🔎 ', el('span', { class: 'faint' }, 'Search Marketplace')),
+        el('div', { class: 'mk-wallet' }, '$' + g.family.money.toLocaleString()),
+      ),
+    );
+
+    if (detail) {
+      // Facebook-style item detail page.
+      return el('div', {},
+        header,
+        el('button', { class: 'btn ghost small', onclick: () => { this._marketDetail = null; this._offerFor = null; this.render(); } }, '‹ Marketplace'),
+        el('div', { class: 'card mk-detail' },
+          this.itemThumb(detail, true),
+          el('div', { class: 'mk-d-price' }, '$' + detail.price),
+          el('h2', { style: 'margin:2px 0 2px' }, detail.name),
+          el('div', { class: 'seller' }, `Listed by ${detail.seller} · Local pickup`),
+          el('hr', { class: 'divider' }),
+          el('p', {}, detail.blurb),
+          el('div', { class: 'effect' }, '✔ ' + detail.effect),
+          el('div', { class: 'listing-actions' },
+            el('button', { class: 'btn primary', disabled: g.family.money < detail.price, onclick: () => this.doBuy(detail.id) }, 'Buy now · $' + detail.price),
+            el('button', { class: 'btn', onclick: () => this.doOffer(detail) }, this._offerFor === detail.id ? 'Cancel' : 'Make an offer'),
+          ),
+          this._offerFor === detail.id ? this.renderOfferSheet(detail) : null,
+        ),
+      );
+    }
+
+    const grid = listings.length
+      ? el('div', { class: 'mk-grid' },
+          ...listings.map((l) =>
+            el('div', { class: 'mk-card', onclick: () => { this._marketDetail = l.id; this._offerFor = null; this.render(); } },
+              this.itemThumb(l),
+              el('div', { class: 'mk-info' },
+                el('div', { class: 'mk-price' }, '$' + l.price),
+                el('div', { class: 'mk-title' }, l.name),
+                el('div', { class: 'mk-seller' }, l.seller),
               ),
-              el('div', { class: 'price' }, '$' + l.price),
-            ),
-            el('div', { class: 'small muted' }, l.blurb),
-            el('div', { class: 'effect' }, l.effect),
-            el('div', { class: 'listing-actions' },
-              el('button', { class: 'btn primary', disabled: g.family.money < l.price, onclick: () => this.doBuy(l.id) }, 'Buy $' + l.price),
-              el('button', { class: 'btn', onclick: () => this.doOffer(l) }, this._offerFor === l.id ? 'Cancel' : 'Make an offer'),
-            ),
-            this._offerFor === l.id ? this.renderOfferSheet(l) : null,
-          )
+            )
+          ),
         )
-      : [el('div', { class: 'empty' }, 'Nothing listed right now. Try the "Browse the marketplace" activity to refresh the board.')];
+      : el('div', { class: 'card' }, el('div', { class: 'empty' }, 'Nothing listed right now. Use the "Browse the marketplace" activity during your week to refresh the board.'));
 
     return el('div', {},
-      el('div', { class: 'card' },
-        el('div', { class: 'eyebrow' }, 'Asset & Marketplace'),
-        el('h2', {}, 'The Classifieds'),
-        el('p', { class: 'small faint' }, `You have $${g.family.money.toLocaleString()}. Items are tradeoffs, not levels — and they carry history.`),
-        el('button', { class: 'btn ghost small', onclick: () => { g.market.refresh(true); this.render(); } }, '🔄 Refresh listings'),
-        el('hr', { class: 'divider' }),
-        ...rows,
+      header,
+      el('div', { class: 'mk-titlebar' },
+        el('h2', { style: 'margin:0' }, "Today's Picks"),
+        el('button', { class: 'btn ghost small', onclick: () => { g.market.refresh(true); this.render(); } }, '🔄 Refresh'),
       ),
+      grid,
     );
   }
 
@@ -659,6 +729,7 @@ export class App {
 
   doBuy(id) {
     const res = this.game.market.buy(id);
+    if (res.ok) { this._marketDetail = null; this._offerFor = null; }
     this._flash(res.msg);
     this.render();
   }
@@ -672,6 +743,7 @@ export class App {
   submitOffer(listing, amount) {
     const res = this.game.market.offer(listing.id, amount);
     this._offerFor = null;
+    if (res.sold || res.gone) this._marketDetail = null; // left the board
     this._flash(res.msg);
     this.render();
   }
@@ -768,7 +840,7 @@ export class App {
     const view = el('div', {},
       el('div', { class: 'title-wrap' },
         el('div', { class: 'logo-mark' }, '🏁'),
-        el('h1', {}, `Season ${g.state.seasonNumber} Recap`),
+        el('h1', {}, `${g.seasonYear} Season`),
         el('div', { class: 'tagline' }, `${g.rider.name}, age ${g.rider.age} · ${g.rider.klass}`),
       ),
       el('div', { class: 'card center' },
@@ -810,7 +882,7 @@ export class App {
         el('div', { class: 'history' },
           ...history.map((h) =>
             el('div', { class: 'history-row' },
-              el('span', { class: 'hr-yr' }, `S${h.season} · age ${h.age}`),
+              el('span', { class: 'hr-yr' }, `${h.year ?? '—'} · age ${h.age}`),
               el('span', { class: 'hr-cl' }, h.klass),
               el('span', {}, `${h.points} pts`),
               el('span', { class: 'faint' }, `best ${h.bestFinish ? ordinal(h.bestFinish) : '—'} · ${h.wins}W`),
@@ -822,7 +894,7 @@ export class App {
         el('p', { class: 'muted' }, 'The garage remembers all of it. Where does the story go from here?'),
         el('div', { class: 'toolbar', style: 'justify-content:center; flex-direction:column' },
           el('button', { class: 'btn primary wide', onclick: () => this.nextSeason() },
-            `▶️ Start Season ${g.state.seasonNumber + 1} — ${g.rider.name} at ${g.rider.age + 1} (${g.classForAge(g.rider.age + 1)})`),
+            `▶️ Ride ${g.seasonYear + 1} — ${g.rider.name} at ${(g.seasonYear + 1) - g.rider.birthYear} (${g.classForAge((g.seasonYear + 1) - g.rider.birthYear)})`),
           el('button', { class: 'btn ghost wide', onclick: () => this.renderRetirement() }, '🏆 Retire & look back on the career'),
           el('button', { class: 'btn ghost wide', onclick: () => { this.clearSave(); this.renderTitle(); } }, '🔁 Start a whole new life'),
         ),
@@ -877,7 +949,7 @@ export class App {
         el('div', { class: 'history' },
           ...h.map((s) =>
             el('div', { class: 'history-row' },
-              el('span', { class: 'hr-yr' }, `S${s.season} · age ${s.age}`),
+              el('span', { class: 'hr-yr' }, `${s.year ?? '—'} · age ${s.age}`),
               el('span', { class: 'hr-cl' }, s.klass),
               el('span', {}, `${s.points} pts`),
               el('span', { class: 'faint' }, `best ${s.bestFinish ? ordinal(s.bestFinish) : '—'} · ${s.wins}W ${s.podiums}P`),

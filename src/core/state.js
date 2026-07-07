@@ -4,14 +4,28 @@
 // be serialized (save/load) and inspected. Engines never store their own copy
 // of the world; they read and mutate this.
 
-import { PEOPLE, STARTING_BIKE } from '../data/content.js';
+import { PEOPLE, BIKE_FOR_CLASS, CLASS_FOR_AGE } from '../data/content.js';
 
 let _uid = 0;
 export function uid(prefix = 'id') {
   return `${prefix}_${Date.now().toString(36)}_${(_uid++).toString(36)}`;
 }
 
-export function createInitialState(riderName = 'Riley', seed = Date.now()) {
+export const CURRENT_YEAR = new Date().getFullYear();
+
+// Scale a young rider's starting ability down — a 4-year-old on a PW50 is not a
+// 9-year-old. Skills then grow through play and across seasons (growing up).
+export function ageSkillFactor(age) {
+  return Math.max(0.45, Math.min(1.15, 0.55 + (age - 4) * 0.07));
+}
+
+export function createInitialState(riderName = 'Riley', seed = Date.now(), birthdate = '2022-05-15') {
+  const birthYear = parseInt(String(birthdate).slice(0, 4), 10) || CURRENT_YEAR - 4;
+  const startYear = CURRENT_YEAR;
+  const age = Math.max(3, startYear - birthYear);
+  const klass = CLASS_FOR_AGE(age);
+  const f = ageSkillFactor(age);
+  const sk = (n) => Math.round(n * f);
   const relationships = {};
   for (const p of PEOPLE) {
     relationships[p.id] = {
@@ -32,17 +46,19 @@ export function createInitialState(riderName = 'Riley', seed = Date.now()) {
 
     rider: {
       name: riderName,
-      age: 9,
-      klass: '65cc',
-      // Skills, 0-100. Expectation inputs for the race sim.
+      birthdate,
+      birthYear,
+      age,
+      klass,
+      // Skills, 0-100, scaled by age. Expectation inputs for the race sim.
       skills: {
-        starts: 34,
-        cornering: 38,
-        jumping: 30,
-        whoops: 28,
-        raceIQ: 32,
-        consistency: 40,
-        fitness: 45,
+        starts: sk(34),
+        cornering: sk(38),
+        jumping: sk(30),
+        whoops: sk(28),
+        raceIQ: sk(32),
+        consistency: sk(40),
+        fitness: sk(45),
       },
       confidence: 50, // 0-100, volatile
       fatigue: 0, // 0-100, higher = worse
@@ -57,7 +73,7 @@ export function createInitialState(riderName = 'Riley', seed = Date.now()) {
     },
 
     // The race bike is an Asset with identity and history (DD-0011).
-    bike: STARTING_BIKE(),
+    bike: BIKE_FOR_CLASS(klass, startYear - 1),
 
     garage: {
       trophies: [],
@@ -91,6 +107,7 @@ export function createInitialState(riderName = 'Riley', seed = Date.now()) {
     // ---- multi-week / multi-season / campaign scaffolding ----
     campaign: 'rider', // 'rider' | 'parent' (DD-0012)
     seasonNumber: 1,
+    startYear, // calendar year of season 1; season year = startYear + seasonNumber - 1
     _preparedWeek: 0, // guards once-per-week setup across save/load
     chainQueue: [], // scheduled follow-up scenarios: { dueWeek, scenarioId }
     careerHistory: [], // one entry per completed season

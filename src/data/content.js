@@ -55,15 +55,33 @@ export const PEOPLE = [
 ];
 
 // ---------------------------------------------------------------------------
-// The starting bike — an Asset with identity, history and wear (DD-0011).
+// Youth class progression by age. Kids start on 50cc as young as 4, move up as
+// they grow (DD-0013: childhood is emotionally important, not a short tutorial).
 // ---------------------------------------------------------------------------
-export function STARTING_BIKE() {
+export function CLASS_FOR_AGE(age) {
+  if (age <= 6) return '50cc';
+  if (age <= 11) return '65cc';
+  if (age <= 13) return '85cc';
+  return 'Supermini';
+}
+
+const BIKE_BY_CLASS = {
+  '50cc': { name: 'KTM 50 SX', manufacturer: 'KTM', serialPrefix: 'KTM50' },
+  '65cc': { name: 'Kawasaki KX65', manufacturer: 'Kawasaki', serialPrefix: 'KX065' },
+  '85cc': { name: 'Yamaha YZ85', manufacturer: 'Yamaha', serialPrefix: 'YZ085' },
+  Supermini: { name: 'Cobra CX-Supermini', manufacturer: 'Cobra', serialPrefix: 'CXSM' },
+};
+
+// The starting/each-class bike — an Asset with identity, history, wear (DD-0011).
+export function BIKE_FOR_CLASS(klass = '50cc', year = 2019) {
+  const spec = BIKE_BY_CLASS[klass] ?? BIKE_BY_CLASS['65cc'];
   return {
     assetId: uid('bike'),
-    serial: 'KX065-' + Math.floor(1000 + Math.random() * 9000),
-    name: '2019 Kawasaki KX65',
-    manufacturer: 'Kawasaki',
-    year: 2019,
+    serial: spec.serialPrefix + '-' + Math.floor(1000 + Math.random() * 9000),
+    name: `${year} ${spec.name}`,
+    manufacturer: spec.manufacturer,
+    year,
+    klass,
     type: 'race_bike',
     condition: 72, // 0-100, wears with use
     reliability: 58, // 0-100, chance of a mechanical DNF/mistake
@@ -76,6 +94,11 @@ export function STARTING_BIKE() {
     memories: [], // object memories
     sentimental: 60, // first real race bike
   };
+}
+
+// Back-compat alias.
+export function STARTING_BIKE() {
+  return BIKE_FOR_CLASS('50cc');
 }
 
 // ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@
 import { RNG } from './core/rng.js';
 import { EventBus } from './core/eventBus.js';
 import { createInitialState } from './core/state.js';
-import { CALENDAR, ACTIVITIES } from './data/content.js';
+import { CALENDAR, ACTIVITIES, CLASS_FOR_AGE, BIKE_FOR_CLASS } from './data/content.js';
 import { MemoryEngine } from './engines/memoryEngine.js';
 import { RelationshipEngine } from './engines/relationshipEngine.js';
 import { WorldEngine } from './engines/worldEngine.js';
@@ -47,8 +47,8 @@ export const SIM_DEPTHS = {
 };
 
 export class Game {
-  constructor({ riderName = 'Riley', seed = Date.now(), depth = 'detailed' } = {}) {
-    this.state = createInitialState(riderName, seed);
+  constructor({ riderName = 'Riley', seed = Date.now(), depth = 'detailed', birthdate = '2022-05-15' } = {}) {
+    this.state = createInitialState(riderName, seed, birthdate);
     this.state.simDepth = depth;
     this.rng = new RNG(seed);
     this.bus = new EventBus();
@@ -76,6 +76,8 @@ export class Game {
   get garage() { return this.state.garage; }
   get season() { return this.state.season; }
   get depth() { return SIM_DEPTHS[this.state.simDepth]; }
+  // Calendar year of the current season (2026, 2027, ...).
+  get seasonYear() { return this.state.startYear + this.state.seasonNumber - 1; }
 
   // ---- helper API used by content -----------------------------------------
   rel(id) { return this.relationships.of(id); }
@@ -350,12 +352,8 @@ export class Game {
   }
 
   // ---- multi-season career -------------------------------------------------
-  // Class progression by age (youth motocross ladder).
   classForAge(age) {
-    if (age <= 8) return '65cc';
-    if (age <= 11) return '65cc';
-    if (age <= 13) return '85cc';
-    return 'Supermini';
+    return CLASS_FOR_AGE(age);
   }
 
   // Summarize the season just finished into the career record.
@@ -364,6 +362,7 @@ export class Game {
     const results = s.results;
     this.state.careerHistory.push({
       season: this.state.seasonNumber,
+      year: this.seasonYear,
       age: this.rider.age,
       klass: this.rider.klass,
       points: s.points,
@@ -386,10 +385,35 @@ export class Game {
   startNextSeason() {
     this.archiveSeason();
 
-    // Age up, progress class, carry the person forward.
-    this.rider.age += 1;
-    this.rider.klass = this.classForAge(this.rider.age);
+    // Advance the calendar a year; recompute age from birth year.
     this.state.seasonNumber += 1;
+    this.rider.age = this.seasonYear - this.rider.birthYear;
+    const newClass = this.classForAge(this.rider.age);
+
+    // Moving up a class: the outgrown bike becomes a keepsake, a new one arrives.
+    if (newClass !== this.rider.klass) {
+      const old = this.bike;
+      this.garage.objects.push({
+        name: `${old.name} (first ${old.klass})`,
+        memory: `Your ${old.klass} from ${old.year}. Outgrown, never forgotten.`,
+      });
+      this.memory.record({
+        type: 'object',
+        title: `Moved Up to ${newClass}`,
+        summary: `You outgrew the ${old.klass} and stepped up to a ${newClass}. Bigger bike, bigger jumps, same kid.`,
+        emotion: ['nerves', 'pride'],
+        tags: ['milestone', 'growing_up'],
+        importance: 68,
+        force: true,
+      });
+      this.rider.klass = newClass;
+      this.state.bike = BIKE_FOR_CLASS(newClass, this.seasonYear - 1);
+    }
+
+    // Natural maturation — kids get stronger as they grow.
+    this.skill('fitness', this.rng.int(2, 5));
+    this.skill('cornering', this.rng.int(1, 3));
+    this.skill('consistency', this.rng.int(1, 3));
 
     // A new season resets the calendar clock but keeps the life.
     this.state.week = 1;

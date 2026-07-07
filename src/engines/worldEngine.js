@@ -54,7 +54,7 @@ export class WorldEngine {
   // Called once per week. Rivals improve; the world occasionally speaks up.
   tick() {
     for (const r of this.riders) {
-      r.rating = Math.min(92, r.rating + r.growth * this.game.rng.range(0.4, 1.2));
+      r.rating = Math.min(92, r.rating + r.growth * this.game.rng.range(0.25, 0.8));
     }
     // News roughly every other week, so it doesn't become noise.
     if (this.game.rng.chance(0.55)) {
