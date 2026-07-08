@@ -25,6 +25,8 @@ import { MemoryTriggerRegistry, defaultTriggers } from './systems/memoryTriggers
 import { NotificationQueue } from './systems/notifications.js';
 import { buildGarageView, makeListingDraft, publishListing, completeSale } from './systems/garageView.js';
 import { phoneApps as buildPhoneApps, canAccess } from './systems/phoneHub.js';
+import { dealerCatalog as buildDealerCatalog, dealerPrice, placeOrder, receiveOrders } from './systems/dealer.js';
+import { search as usedSearch, filterListings as usedFilter, sortListings as usedSort } from './systems/usedMarketplace.js';
 import { RaceSession } from './engines/raceEngine.js';
 
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
@@ -97,6 +99,7 @@ export class Game {
     // Phone / Internet hub notification queue (issue #74).
     this.notifications = NotificationQueue.fromJSON(this.state.notifications);
     if (!this.state.market.drafts) this.state.market.drafts = []; // listing drafts (#76)
+    if (!this.state.market.orders) this.state.market.orders = []; // dealer orders (#39)
     // Feed the phone: big memories and race results become notifications (#74).
     this.bus.on('memory:created', ({ memory }) => {
       if (memory && memory.importance >= 72) {
@@ -324,6 +327,8 @@ export class Game {
     if (this.rng.chance(0.5)) this.market.refresh(false);
     // Phone: surface upcoming race weekends + registration reminders (#74).
     this.queueCalendarNotifications();
+    // Dealer orders in transit may arrive this week (#39).
+    this.receiveDealerOrders();
   }
 
   // Add calendar notifications for the next race weekend and its registration
@@ -562,6 +567,50 @@ export class Game {
     return buildPhoneApps(this.phoneCtx(), badges);
   }
   phoneAccess(appId) { return canAccess(appId, this.phoneCtx()); }
+
+  // ---- Dealer channel: OEM catalog + orders (issues #33/#39) ---------------
+  // A sponsor unlocks a dealer discount on eligible parts.
+  dealerDiscount() { return (this.sponsors.active?.().length ?? 0) > 0 ? 0.15 : 0; }
+  dealerCatalog() {
+    return buildDealerCatalog(this.bike).map((i) => ({ ...i, price: dealerPrice(i, { sponsorDiscount: this.dealerDiscount() }) }));
+  }
+  // Order a new part; money out now, it arrives after the shipping ETA (#39).
+  orderDealerPart(itemId, { method = 'ship' } = {}) {
+    const item = this.dealerCatalog().find((i) => i.id === itemId);
+    if (!item) return null;
+    const price = dealerPrice(item, { sponsorDiscount: this.dealerDiscount() });
+    if (this.family.money < price) return { error: 'insufficient' };
+    const order = placeOrder(item, { day: this.dayIndex, method, sponsorDiscount: this.dealerDiscount() });
+    this.spend(order.price);
+    this.state.market.orders.push(order);
+    this.notify({ source: 'dealer', priority: 'normal', title: `Ordered: ${item.label}`, body: order.method === 'pickup' ? 'Ready for pickup.' : `Arrives in ~${item.shippingDays} days.`, actionTarget: { screen: 'garage' }, icon: '📦' });
+    return order;
+  }
+  // Deliver any arrived orders: install the part (fresh life) + notify (#39).
+  receiveDealerOrders() {
+    const arrived = receiveOrders(this.state.market.orders ?? [], this.dayIndex);
+    const partKey = { tires: 'tires', topEnd: 'topEnd', brakes: 'brakes' };
+    for (const o of arrived) {
+      const key = partKey[o.category];
+      if (key && this.bike.parts && this.bike.parts[key] != null) this.bike.parts[key] = 100;
+      else if (o.category === 'suspension') this.bikeCondition(8);
+      this.notify({ source: 'dealer', priority: 'normal', title: `Delivered: ${o.label}`, body: 'Installed and ready.', actionTarget: { screen: 'garage' }, icon: '✅' });
+      this.log(`📦 ${o.label} arrived and went on the bike.`);
+    }
+    return arrived;
+  }
+
+  // ---- Used marketplace search/filter (issues #32) -------------------------
+  // Adapt the existing listing board to the searchable model's fields.
+  searchUsedListings({ query = '', criteria = {}, sort = 'relevance' } = {}) {
+    const adapted = (this.state.market.listings ?? []).map((l) => ({
+      ...l, title: l.name, category: l.category ?? 'part', sellerRep: l.sellerRep ?? 70,
+      klass: l.klass ?? null, distance: l.distance ?? 10, oem: l.oem ?? 'aftermarket',
+    }));
+    let out = usedSearch(adapted, query);
+    out = usedFilter(out, criteria);
+    return usedSort(out, sort);
+  }
 
   // ---- Garage view models + listing flow (issues #75/#76) -----------------
   garageView() {

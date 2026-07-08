@@ -1339,7 +1339,8 @@ export class App {
     // In-phone apps route here; others jump to their existing tab.
     if (this._phoneApp === 'marketplace' && g.phoneAccess('marketplace').ok) return this.renderMarket();
     if (this._phoneApp === 'notifications') return this.renderNotifications();
-    if (this._phoneApp && ['messages', 'dealer', 'social'].includes(this._phoneApp)) return this.renderPhoneStub(this._phoneApp);
+    if (this._phoneApp === 'dealer' && g.phoneAccess('dealer').ok) return this.renderDealerApp();
+    if (this._phoneApp && ['messages', 'social'].includes(this._phoneApp)) return this.renderPhoneStub(this._phoneApp);
 
     const apps = g.phoneApps();
     const unread = g.notifications.unreadCount(g.dayIndex);
@@ -1401,14 +1402,52 @@ export class App {
     );
   }
 
+  // Dealer website: OEM parts filtered by bike fitment, with orders (#33/#39).
+  renderDealerApp() {
+    const g = this.game;
+    const catalog = g.dealerCatalog().filter((i) => i.fitment !== 'incompatible');
+    const disc = g.dealerDiscount();
+    const orders = (g.state.market.orders ?? []).filter((o) => o.status !== 'delivered');
+    const fitBadge = { direct: ['✓ fits', 'var(--green)'], modify: ['~ needs work', 'var(--gold)'], unknown: ['? ask', 'var(--ink-faint)'] };
+    return el('div', { class: 'phone' },
+      el('div', { class: 'phone-appbar' },
+        el('button', { class: 'btn ghost small', onclick: () => { this._phoneApp = null; this.render(); } }, '‹ Phone'),
+        el('b', {}, '🏪 Dealer'),
+        el('div', { class: 'mk-wallet' }, '$' + g.family.money.toLocaleString()),
+      ),
+      disc ? el('div', { class: 'card', style: 'padding:8px 12px' }, el('span', { class: 'small', style: 'color:var(--green)' }, `🏷️ Sponsor discount: ${Math.round(disc * 100)}% off eligible parts`)) : null,
+      orders.length ? el('div', { class: 'card' }, el('h3', {}, '📦 On Order'),
+        ...orders.map((o) => el('div', { class: 'small' }, `${o.label} — arriving (${o.method})`))) : null,
+      el('div', { class: 'card' },
+        el('h3', {}, `OEM Parts · ${g.bike.name}`),
+        el('p', { class: 'small faint' }, 'New parts, correct fitment, delivered to the garage.'),
+        ...catalog.map((i) => {
+          const badge = fitBadge[i.fitment] ?? fitBadge.unknown;
+          const afford = g.family.money >= i.price;
+          return el('div', { class: 'dealer-row' },
+            el('div', {},
+              el('div', {}, el('b', {}, i.label), ' ', el('span', { class: 'sp-tier ' + (i.oem === 'factory' ? 'national' : 'regional') }, i.oem)),
+              el('div', { class: 'small', style: `color:${badge[1]}` }, `${badge[0]} · ${i.availability.replace('_', ' ')} · ~${i.shippingDays}d`),
+            ),
+            el('div', { style: 'text-align:right' },
+              el('div', { class: 'mono' }, '$' + i.price),
+              el('button', { class: 'btn small primary', disabled: !afford, onclick: () => { const o = g.orderDealerPart(i.id); if (o && !o.error) this._flash(`Ordered ${i.label}.`); this.saveGame(); this.render(); } }, 'Order'),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
   renderMarket() {
     const g = this.game;
-    const listings = g.market.listings;
-    const detail = listings.find((l) => l.id === this._marketDetail);
+    const q = this._mkQuery ?? '';
+    const listings = q ? g.searchUsedListings({ query: q }) : g.market.listings;
+    const detail = g.market.listings.find((l) => l.id === this._marketDetail);
 
     const header = el('div', { class: 'mk-header' },
       el('div', { class: 'mk-bar' },
-        el('div', { class: 'mk-search' }, '🔎 ', el('span', { class: 'faint' }, 'Search Marketplace')),
+        el('input', { class: 'mk-search-input', value: q, placeholder: '🔎 Search marketplace', oninput: (e) => { this._mkQuery = e.target.value; }, onchange: (e) => { this._mkQuery = e.target.value; this.render(); } }),
         el('div', { class: 'mk-wallet' }, '$' + g.family.money.toLocaleString()),
       ),
     );
