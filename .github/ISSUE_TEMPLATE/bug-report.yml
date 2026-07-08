@@ -1,0 +1,59 @@
+name: Bug report
+description: Report incorrect, broken, or confusing behavior.
+title: "Bug: "
+labels:
+  - type: bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Briefly describe the bug.
+      placeholder: "The calendar skips race day after loading a save."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide exact steps so someone else can reproduce it.
+      placeholder: "1. Start a new career\n2. Advance to Saturday\n3. Save and reload"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happens?
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots-logs
+    attributes:
+      label: Screenshots/logs
+      description: Attach screenshots, logs, save files, or console output if available.
+    validations:
+      required: false
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Who or what does this affect, and how severe is it?
+      placeholder: "Blocks progression, breaks immersion, affects MVP, or causes data loss."
+    validations:
+      required: true
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: What proves the bug is fixed?
+      placeholder: "Reproduction no longer occurs, regression test is added, and related docs are updated if needed."
+    validations:
+      required: true

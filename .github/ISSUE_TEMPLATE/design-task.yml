@@ -1,0 +1,59 @@
+name: Design task
+description: Define, refine, or document a gameplay, narrative, UI, or systems design decision.
+title: "Design: "
+labels:
+  - type: design
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: What needs to be designed or decided?
+      placeholder: "Describe the design work in concrete terms."
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: Why does this matter to the game, player experience, or production plan?
+      placeholder: "Connect this task to emotion, authenticity, legacy, or implementation readiness."
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: How
+      description: How should this be approached?
+      placeholder: "List constraints, design principles, comparable systems, and recommended steps."
+    validations:
+      required: true
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: What proves this design task is complete?
+      placeholder: "A reviewed spec exists with edge cases, examples, and links to follow-up tasks."
+    validations:
+      required: true
+  - type: input
+    id: related-epic
+    attributes:
+      label: Related epic
+      placeholder: "EPIC: Road to Loretta's"
+    validations:
+      required: false
+  - type: input
+    id: design-bible-section
+    attributes:
+      label: Related Design Bible section
+      placeholder: "Legacy Bible > Career > Amateur Progression"
+    validations:
+      required: false
+  - type: textarea
+    id: open-questions
+    attributes:
+      label: Open questions
+      placeholder: "List unknowns, risks, or decisions that need owner input."
+    validations:
+      required: false

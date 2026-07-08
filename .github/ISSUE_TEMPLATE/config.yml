@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Issue Writing Guide
+    url: https://github.com/OWNER/REPOSITORY/blob/main/docs/github/ISSUE_WRITING_GUIDE.md
+    about: Read this before opening issues so every issue includes What, Why, How, and Definition of Done.
