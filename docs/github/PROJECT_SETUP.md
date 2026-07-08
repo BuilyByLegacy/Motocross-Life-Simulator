@@ -32,3 +32,27 @@ The repository includes issue forms for bugs, features, design tasks, epics, res
 - Keep epics as parent issues with linked child task lists.
 - Move issues to Ready only when Definition of Done and testing expectations are clear.
 - Close issues only after acceptance criteria are verified.
+
+## World Depth & Legacy Planning References
+
+Use `issues/11_world_depth_legacy_systems_issues.md` when creating future design issues for:
+
+- Dynamic Motocross World
+- AI Families
+- Dynamic Economy
+- Personality Engine
+- Group Reputation
+- Dynamic Media
+- Family Memories
+- Garage Museum
+- Home Life
+- Opportunity Engine
+- Mechanical Knowledge
+- Legacy After Retirement
+- Weather
+- Living Track Surface
+- Hall of Fame
+- Career Endings
+- Documentary Engine
+
+These drafts are documentation-only and should be converted into GitHub issues before implementation work begins.
