@@ -65,6 +65,20 @@ export function CLASS_FOR_AGE(age) {
   return 'Supermini';
 }
 
+// Real youth classes overlap by age, so a kid can be eligible for two at once
+// (e.g. a 10-year-old can run 65cc AND 85cc) — issue #4.
+const CLASS_AGE_RANGES = {
+  '50cc': [4, 8],
+  '65cc': [7, 11],
+  '85cc': [9, 13],
+  Supermini: [12, 16],
+};
+export function ELIGIBLE_CLASSES(age) {
+  return Object.entries(CLASS_AGE_RANGES)
+    .filter(([, [lo, hi]]) => age >= lo && age <= hi)
+    .map(([k]) => k);
+}
+
 const BIKE_BY_CLASS = {
   '50cc': { name: 'KTM 50 SX', manufacturer: 'KTM', serialPrefix: 'KTM50' },
   '65cc': { name: 'Kawasaki KX65', manufacturer: 'Kawasaki', serialPrefix: 'KX065' },

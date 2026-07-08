@@ -268,6 +268,13 @@ button { font-family: inherit; }
 .sp-action { flex: none; }
 .sp-check { font-size: 0.76rem; color: var(--green); }
 
+/* ---- Class entry (multi-class racing) ---- */
+.class-entry { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.class-chip { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; }
+.class-chip.on { border-color: var(--amber); background: #2b2519; color: var(--amber-2); }
+.class-chip input { width: 16px; height: 16px; accent-color: var(--amber); }
+.extra-results { margin: 6px 0; padding: 6px 0; border-top: 1px dashed var(--line); }
+
 /* ---- Bikes list ---- */
 .bike-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); }
 .bike-row:last-child { border-bottom: 0; }

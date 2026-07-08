@@ -17,31 +17,32 @@ const STRATEGIES = {
 
 export const RACE_STRATEGIES = STRATEGIES;
 
-function playerBaseRating(g) {
+function playerBaseRating(g, overrideBike) {
   const s = g.rider.skills;
   const rider =
     s.starts * 0.14 + s.cornering * 0.2 + s.jumping * 0.14 + s.whoops * 0.1 +
     s.raceIQ * 0.16 + s.consistency * 0.16 + s.fitness * 0.1;
-  const b = g.bike;
-  const bike = b.performance * 0.35 + b.handling * 0.35 + b.starts * 0.15 + b.condition * 0.15;
-  let rating = rider * 0.62 + bike * 0.23 + g.rider.confidence * 0.15;
+  const b = overrideBike ?? g.bike;
+  const bikeScore = b.performance * 0.35 + b.handling * 0.35 + b.starts * 0.15 + b.condition * 0.15;
+  let rating = rider * 0.62 + bikeScore * 0.23 + g.rider.confidence * 0.15;
   if (g.rider.injury && g.rider.injury.weeksOut > 0) rating -= 8;
   if (g.flag('mud_ready')) rating += 4; // prepped for the conditions
   if (g.flag('pit_help')) rating += 4; // paid pit support (Parent mode)
-  const tw = g.bike.tireWear ?? 0;
+  const tw = b.tireWear ?? 0;
   if (tw > 50) rating -= Math.min(6, (tw - 50) * 0.12); // worn tires hurt grip (issue #3)
   return rating;
 }
 
 // Rough pre-race "form" read for the UI preview (0-100).
-export function estimateForm(g) {
-  return Math.round(playerBaseRating(g));
+export function estimateForm(g, bike) {
+  return Math.round(playerBaseRating(g, bike));
 }
 
 export class RaceSession {
-  constructor(game, race) {
+  constructor(game, race, bike) {
     this.game = game;
     this.race = race;
+    this.bike = bike ?? game.bike; // which bike the player races (issue #4)
     this.lapsPerMoto = race.laps;
     this.motoCount = race.motos;
     this.motoIndex = 0;
@@ -65,7 +66,7 @@ export class RaceSession {
         id: 'player',
         name: g.rider.name,
         isPlayer: true,
-        base: playerBaseRating(g),
+        base: playerBaseRating(g, this.bike),
         aggression: 0.6,
       },
       ...g.world.field().map((r) => ({
@@ -88,7 +89,7 @@ export class RaceSession {
     for (const r of this.riders) {
       let startScore;
       if (r.isPlayer) {
-        startScore = g.bike.starts * 0.5 + g.rider.skills.starts * 0.5 + g.rng.noise(1) * 22;
+        startScore = this.bike.starts * 0.5 + g.rider.skills.starts * 0.5 + g.rng.noise(1) * 22;
       } else {
         startScore = r.base * 0.5 + r.aggression * 28 + g.rng.noise(1) * 22;
       }
@@ -153,7 +154,7 @@ export class RaceSession {
 
       if (r.isPlayer) {
         pace += strat.pace;
-        risk = 0.02 + strat.risk + (1 - g.bike.reliability / 100) * 0.03;
+        risk = 0.02 + strat.risk + (1 - this.bike.reliability / 100) * 0.03;
         fatigueGain = strat.fatigue;
       } else {
         // Sim riders ride to their aggression.
@@ -172,7 +173,7 @@ export class RaceSession {
 
       // Mechanical DNF — condition & reliability matter (bike prep pays off).
       const rel = this._reliabilityFor(r);
-      const cond = r.isPlayer ? g.bike.condition : 70;
+      const cond = r.isPlayer ? this.bike.condition : 70;
       const dnfChance = (1 - rel / 100) * 0.008 * (cond < 50 ? 1.6 : 1);
       if (g.rng.chance(dnfChance)) {
         r.out = true;
@@ -242,7 +243,7 @@ export class RaceSession {
   }
 
   _reliabilityFor(r) {
-    return r.isPlayer ? this.game.bike.reliability : 72;
+    return r.isPlayer ? this.bike.reliability : 72;
   }
 
   _maybeInjury(severe) {
@@ -305,6 +306,8 @@ export class RaceSession {
 
     const result = {
       race: this.race,
+      klass: this.bike.klass,
+      bikeId: this.bike.assetId,
       overall,
       points,
       motos: playerScore.motos,
