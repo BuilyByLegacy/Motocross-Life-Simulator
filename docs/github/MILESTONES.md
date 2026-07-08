@@ -55,4 +55,15 @@ Milestones group focused delivery goals. They should have clear exit criteria an
 **Goal:** Prepare Motocross: Chasing the Dream for TestFlight, App Store review, public launch, and launch-week monitoring.
 
 **Exit criteria:** Version 1.0 launch scope is agreed, launch blockers are tracked, TestFlight plan exists, core career loop and save/load are verified, App Store assets and privacy/compliance requirements are documented, the final launch checklist is complete, and post-launch monitoring is planned.
+## Version Roadmap Alignment
+
+Use `docs/github/issues/16_v1_scope_roadmap_mvp_cutline_issues.md` to align milestone planning around:
+
+- v1.0 Scope
+- MVP Cutline
+- Vertical Slice
+- Launch Non-Goals
+- Version Roadmap
+
+Recommended version sequence: v0.1 prototype, v0.2 vertical slice, v0.3 internal alpha, v0.4 TestFlight alpha, v0.5 external beta, v1.0 App Store launch, v1.1 first content update, and v2.0 major expansion.
 
