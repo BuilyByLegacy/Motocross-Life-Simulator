@@ -98,3 +98,14 @@ The Monetization Strategy issue drafts in `docs/github/issues/15_monetization_st
 
 These drafts are documentation only and should not be treated as approval to implement payments, implement ads, create gameplay systems, call the GitHub API, or create real GitHub issues directly. They reinforce the rule that purchases cannot buy race wins, rider stats, better bikes, better parts, Loretta qualification, injury immunity, sponsor advantages, or any other competitive shortcut.
 
+## Version 1.0 scope and roadmap planning references
+
+The Version 1.0 Scope, Roadmap, and MVP Cutline issue drafts in `docs/github/issues/16_v1_scope_roadmap_mvp_cutline_issues.md` should be used when sorting GitHub Projects into **v1.0 / later / someday**. Prioritize these planning anchors during triage:
+
+- v1.0 Scope
+- MVP Cutline
+- Vertical Slice
+- Launch Non-Goals
+- Version Roadmap
+
+These drafts are documentation only and should not be treated as approval to implement gameplay, call the GitHub API, create real GitHub issues directly, or delete existing planned issues.
