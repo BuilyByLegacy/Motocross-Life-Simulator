@@ -32,3 +32,14 @@ The repository includes issue forms for bugs, features, design tasks, epics, res
 - Keep epics as parent issues with linked child task lists.
 - Move issues to Ready only when Definition of Done and testing expectations are clear.
 - Close issues only after acceptance criteria are verified.
+## Social planning references
+
+The Friends, Connected Careers, and Leaderboard System issue drafts introduce the asynchronous multiplayer/social layer for the project. Use `docs/github/issues/10_friends_leaderboards_connected_careers_issues.md` when triaging design work for:
+
+- Friends System in the in-game phone app.
+- Connected Careers profile cards and career comparison.
+- Story-first leaderboards that value outcomes, memories, garage value, sponsors, injuries, fan following, and legacy.
+- Career Sharing through season recaps and final career documentaries.
+- Asynchronous multiplayer/social layer features such as friend notifications and optional world cameos.
+
+These drafts are documentation only and should not be treated as approval to implement gameplay, live multiplayer, backend services, or GitHub API automation.
