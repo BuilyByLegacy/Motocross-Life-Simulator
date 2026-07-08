@@ -42,6 +42,11 @@ Epics are tracked as GitHub issues labeled `type: epic`. Child issues should lin
 19. **Research Binder** — structured research for culture, rules, costs, family life, equipment, and competition.
 20. **MVP Vertical Slice** — smallest playable slice that proves the game’s core promise.
 
+
+## Copy/paste epic issue bodies
+
+Use `docs/github/EPIC_ISSUE_BODIES.md` for the full GitHub issue body of each required epic. That file contains all 20 epics in the required Purpose / Why It Matters / Scope / Example Child Issues / Definition of Done format.
+
 ## Epic Definition of Done
 
 An epic is ready when its purpose, affected systems, child issues, dependencies, open questions, and completion evidence are documented clearly enough for design and implementation work to proceed.

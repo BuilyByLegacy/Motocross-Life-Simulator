@@ -64,6 +64,32 @@ What belongs inside this Epic.
 - [ ] Open questions documented
 ```
 
+
+## Required epic catalog
+
+Create or verify these 20 GitHub issues and label each one `type: epic`. Use the full copy/paste-ready bodies in `docs/github/EPIC_ISSUE_BODIES.md`.
+
+1. **EPIC: Core Simulation Engine** — time, entities, state changes, rules, and long-running outcomes.
+2. **EPIC: Memory Engine** — meaningful events remembered by riders, families, rivals, sponsors, and the world.
+3. **EPIC: Relationship Engine** — family, rivals, friends, sponsors, mechanics, and community trust.
+4. **EPIC: Story Engine** — emergent story moments, authored beats, consequences, and callbacks.
+5. **EPIC: World Simulation Engine** — NPC riders, teams, events, opportunities, and market changes.
+6. **EPIC: Calendar & Time Engine** — days, weeks, seasons, deadlines, routines, and career pacing.
+7. **EPIC: Family & Economy Engine** — budgets, sacrifices, work, parental support, and financial pressure.
+8. **EPIC: Competition / Race Engine** — race weekends, classes, qualifying, results, fatigue, and consequences.
+9. **EPIC: Asset Engine** — ownership, condition, history, depreciation, and lifecycle of bikes, parts, gear, vehicles, and property.
+10. **EPIC: Marketplace Engine** — searchable used marketplace listings, negotiation, risk, and opportunity.
+11. **EPIC: Garage & Property System** — storage, repairs, upgrades, trophies, and home-base identity.
+12. **EPIC: Phone / Internet UI** — messages, calendar, marketplace browsing, race information, photos, and notifications.
+13. **EPIC: Career Progression** — non-linear paths through amateur, regional, national, sponsored, and life-stage progression.
+14. **EPIC: Road to Loretta’s** — qualification, preparation, pressure, travel, cost, and family sacrifice.
+15. **EPIC: Rider Development Curves** — growth, plateaus, regression, specialization, burnout, and confidence.
+16. **EPIC: Bike Class Transitions** — age, skill, bike size, eligibility, and emotional/financial timing.
+17. **EPIC: Parent Campaign** — guiding, funding, supporting, and emotionally stewarding a rider’s dream.
+18. **EPIC: Rider Campaign** — training, racing, school/life balance, confidence, identity, and ambition.
+19. **EPIC: Research Binder** — structured research for culture, rules, costs, family life, equipment, and competition.
+20. **EPIC: MVP Vertical Slice** — smallest playable slice that proves the game’s core promise.
+
 ## Epic mapping rules
 
 Use issues labeled `type: epic` as epics. Do not duplicate existing epics. If a needed epic does not exist, create it or recommend it during triage.
