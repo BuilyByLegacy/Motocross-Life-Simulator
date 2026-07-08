@@ -275,15 +275,24 @@ export class Game {
     const days = [];
 
     for (const [key, label] of weekdays) {
+      const energy = afterSchool.has(key); // does the kid have after-school energy today?
       if (age <= 5) {
-        days.push({ key, label, kind: 'preschool', daytime: 'Preschool', slots: [] });
+        // Preschool is a half-day: afternoons free for a little play/activity
+        // (issue #17) — it no longer eats the whole day.
+        const slots = energy ? [{ id: key + '-1', type: 'light', afterSchool: true }] : [];
+        days.push({ key, label, kind: 'preschool', daytime: 'Preschool ½ day', slots });
       } else if (homeschool) {
-        // Homeschool frees the day; you can ride, but must fit schoolwork in.
-        const slots = afterSchool.has(key) ? [{ id: key + '-1', type: 'full' }] : [{ id: key + '-1', type: 'light' }];
+        // Homeschool is flexible: on energy days you can ride AND still fit an
+        // after-lesson light activity in; otherwise a single light slot.
+        const slots = energy
+          ? [{ id: key + '-1', type: 'full' }, { id: key + '-2', type: 'light', afterSchool: true }]
+          : [{ id: key + '-1', type: 'light' }];
         days.push({ key, label, kind: 'home', daytime: 'Homeschool', slots });
       } else {
-        const slots = afterSchool.has(key) ? [{ id: key + '-1', type: 'light', afterSchool: true }] : [];
-        days.push({ key, label, kind: 'school', daytime: 'School', slots });
+        // Public school: the day is school, but the evening is yours on the days
+        // you've got the energy for it.
+        const slots = energy ? [{ id: key + '-1', type: 'light', afterSchool: true }] : [];
+        days.push({ key, label, kind: 'school', daytime: 'School + evening', slots });
       }
     }
 
