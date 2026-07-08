@@ -8,7 +8,7 @@
 import { RNG } from './core/rng.js';
 import { EventBus } from './core/eventBus.js';
 import { createInitialState } from './core/state.js';
-import { CALENDAR, ACTIVITIES, ACTIVITIES_PARENT, CLASS_FOR_AGE, BIKE_FOR_CLASS } from './data/content.js';
+import { CALENDAR, ACTIVITIES, ACTIVITIES_PARENT, CLASS_FOR_AGE, BIKE_FOR_CLASS, ELIGIBLE_CLASSES } from './data/content.js';
 import { MemoryEngine } from './engines/memoryEngine.js';
 import { RelationshipEngine } from './engines/relationshipEngine.js';
 import { WorldEngine } from './engines/worldEngine.js';
@@ -438,9 +438,34 @@ export class Game {
   }
 
   // ---- race weekend --------------------------------------------------------
-  buildRace() {
-    this.currentRace = new RaceSession(this, this.meta().race);
+  // Classes the rider can enter at a race: age-eligible AND they own a bike for
+  // it (issue #4). Returns [{ klass, bike }], race-bike class first.
+  enterableClasses() {
+    const eligible = new Set(ELIGIBLE_CLASSES(this.rider.age));
+    const byClass = new Map();
+    for (const b of this.ownedBikes()) {
+      if (!eligible.has(b.klass)) continue;
+      // Prefer the race-role bike for a class.
+      if (!byClass.has(b.klass) || b.role === 'race') byClass.set(b.klass, b);
+    }
+    const out = [];
+    const activeClass = this.bike.klass;
+    if (byClass.has(activeClass)) out.push({ klass: activeClass, bike: byClass.get(activeClass) });
+    for (const [klass, bike] of byClass) if (klass !== activeClass) out.push({ klass, bike });
+    return out;
+  }
+
+  buildRace(bike) {
+    this.currentRace = new RaceSession(this, this.meta().race, bike ?? this.bike);
     return this.currentRace;
+  }
+
+  // Quick-sim an additional class entry (issue #4): its own bike, its own result.
+  simulateClassEntry(entry, strategy = 'steady') {
+    const session = new RaceSession(this, this.meta().race, entry.bike);
+    const result = session.simulateRemaining(strategy);
+    this.applyRaceResult(result);
+    return result;
   }
 
   applyRaceResult(result) {
@@ -448,10 +473,10 @@ export class Game {
     const first = !this.flag('had_race');
     this.setFlag('had_race', true);
 
-    // Physical toll & confidence swing.
+    // Physical toll & confidence swing. Wear the bike that actually raced.
     this.fatigue(26);
-    this.bikeCondition(-15);
-    this.wearParts(5); // a race weekend eats into the tires (issue #3)
+    const raced = this.ownedBikes().find((b) => b.assetId === result.bikeId) ?? this.bike;
+    this.wearBike(raced, { condition: -15, tire: 5 });
     const overall = result.overall;
     if (result.dnf) this.confidence(-8);
     else if (overall <= 3) this.confidence(11);
@@ -473,12 +498,16 @@ export class Game {
       week: this.week,
       race: result.race.name,
       kind: result.race.kind,
+      klass: result.klass,
       motos: result.motos,
       overall,
       points: result.points,
       dnf: result.dnf,
     });
     st.season.points += result.points;
+    // Per-class points for class championships (issues #4/#9).
+    if (!st.season.classPoints) st.season.classPoints = {};
+    st.season.classPoints[result.klass] = (st.season.classPoints[result.klass] ?? 0) + result.points;
     if (st.season.bestFinish === null || overall < st.season.bestFinish) st.season.bestFinish = overall;
 
     // Milestone memories (DD-0002).

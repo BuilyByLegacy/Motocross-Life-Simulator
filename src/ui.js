@@ -397,6 +397,8 @@ export class App {
         this.digest.push({ type: 'race', result });
         this.finishWeek();
       } else {
+        this._enterExtras = new Set();
+        this._extraResults = null;
         this.showWeek(() => this.viewRaceIntro());
       }
     } else {
@@ -607,6 +609,7 @@ export class App {
         el('p', { class: 'muted' }, `${race.motos} motos · ${race.laps} laps each · ${g.world.field().length + 1} riders on the gate.`),
         el('p', {}, `Your form: `, el('b', { style: 'color:var(--amber-2)' }, `${formWord} (${form})`)),
         warn.length ? el('div', { class: 'hint' }, '⚠️ ' + warn.join(' ')) : el('p', { class: 'small faint' }, 'The bike and body feel ready.'),
+        this.classEntrySection(),
         el('hr', { class: 'divider' }),
         el('div', { class: 'strat-grid' },
           el('button', { class: 'btn primary', onclick: () => this.startInteractiveRace() }, '🏁 Ride it lap-by-lap'),
@@ -614,6 +617,44 @@ export class App {
         ),
       ),
     );
+  }
+
+  // Class-entry toggles when the rider owns bikes for more than one eligible
+  // class (issue #4). The race-bike class is always entered; extras are ridden
+  // lap-by-lap for the primary and auto-simmed for the rest.
+  classEntrySection() {
+    const g = this.game;
+    const entries = g.enterableClasses();
+    if (entries.length <= 1) return null;
+    const primary = entries[0].klass;
+    return el('div', { style: 'margin-top:10px' },
+      el('div', { class: 'small faint' }, `You're eligible for multiple classes and have the bikes. Enter more than one?`),
+      el('div', { class: 'class-entry' },
+        ...entries.map((e) => {
+          const isPrimary = e.klass === primary;
+          const on = isPrimary || this._enterExtras.has(e.klass);
+          return el('label', { class: 'class-chip' + (on ? ' on' : '') },
+            el('input', { type: 'checkbox', ...(on ? { checked: 'checked' } : {}), disabled: isPrimary ? 'disabled' : false,
+              onchange: (ev) => { if (ev.target.checked) this._enterExtras.add(e.klass); else this._enterExtras.delete(e.klass); this.render(); } }),
+            el('span', {}, `${e.klass}${isPrimary ? ' (race bike)' : ''}`),
+          );
+        }),
+      ),
+    );
+  }
+
+  raceEntries() {
+    const g = this.game;
+    const entries = g.enterableClasses();
+    if (entries.length <= 1) return entries;
+    const primary = entries[0];
+    const extras = entries.slice(1).filter((e) => this._enterExtras.has(e.klass));
+    return [primary, ...extras];
+  }
+
+  runExtraClasses(entries) {
+    const g = this.game;
+    this._extraResults = entries.slice(1).map((e) => g.simulateClassEntry(e, 'steady'));
   }
 
   viewParentRaceIntro(race, form, formWord, warn) {
@@ -662,16 +703,22 @@ export class App {
 
   quickSimRace() {
     const g = this.game;
-    const race = g.buildRace();
+    const entries = this.raceEntries();
+    const primaryBike = entries.length ? entries[0].bike : g.bike;
+    const race = g.buildRace(primaryBike);
     const result = race.simulateRemaining('steady');
     g.applyRaceResult(result);
+    this.runExtraClasses(entries);
     this.lastResult = result;
     this.digest.push({ type: 'race', result });
     this.showWeek(() => this.viewRaceResult(result));
   }
 
   startInteractiveRace() {
-    this.race = this.game.buildRace();
+    const entries = this.raceEntries();
+    this._pendingEntries = entries;
+    const primaryBike = entries.length ? entries[0].bike : this.game.bike;
+    this.race = this.game.buildRace(primaryBike);
     this.showWeek(() => this.viewMoto());
   }
 
@@ -743,6 +790,7 @@ export class App {
     } else {
       const result = race.finalize();
       this.game.applyRaceResult(result);
+      if (this._pendingEntries) { this.runExtraClasses(this._pendingEntries); this._pendingEntries = null; }
       this.lastResult = result;
       this.digest.push({ type: 'race', result });
       this.showWeek(() => this.viewRaceResult(result));
@@ -766,7 +814,10 @@ export class App {
       el('div', { class: 'card center' },
         el('div', { class: 'eyebrow' }, result.race.name),
         el('div', { class: 'result-place', style: 'color:' + (result.overall <= 3 && !result.dnf ? 'var(--gold)' : 'var(--ink)') }, place),
-        el('div', { class: 'muted' }, result.dnf ? 'A tough day. It happens.' : `${place} overall  ·  +${result.points} points`),
+        el('div', { class: 'muted' }, `${result.klass ? result.klass + ' · ' : ''}${result.dnf ? 'A tough day. It happens.' : `${place} overall  ·  +${result.points} points`}`),
+        (this._extraResults && this._extraResults.length) ? el('div', { class: 'extra-results' },
+          ...this._extraResults.map((r) => el('div', { class: 'small' }, `${r.klass}: `, el('b', {}, r.dnf ? 'DNF' : ordinal(r.overall)), ` (+${r.points})`)),
+        ) : null,
         el('div', { class: 'small faint', style: 'margin:6px 0' }, motoLine),
         podium,
         result.rivalOverall ? el('p', { class: 'small' }, `${this.game.world.rival()?.name ?? 'Your rival'} finished ${ordinal(result.rivalOverall)}. ${result.overall < result.rivalOverall ? (this.game.isParent ? 'Your kid beat the rival today.' : 'You beat your rival today.') : 'They got you this time.'}`) : null,
