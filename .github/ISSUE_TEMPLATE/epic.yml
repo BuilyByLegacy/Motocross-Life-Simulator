@@ -1,0 +1,63 @@
+name: Epic
+description: Define a major body of design, research, or implementation work.
+title: "EPIC: "
+labels:
+  - type: epic
+body:
+  - type: input
+    id: epic-name
+    attributes:
+      label: Epic name
+      description: Use the format EPIC followed by the system or initiative name.
+      placeholder: "EPIC: Core Simulation Engine"
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: Purpose
+      description: What is this epic meant to accomplish?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+      description: Explain the player, design, production, or technical reason this epic matters.
+    validations:
+      required: true
+  - type: textarea
+    id: systems
+    attributes:
+      label: Systems affected
+      description: List game systems, docs, tooling, UI, or content areas affected.
+    validations:
+      required: true
+  - type: textarea
+    id: child-issues
+    attributes:
+      label: Child issues
+      description: Link or list known child issues. Use task lists when possible.
+    validations:
+      required: false
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: What proves this epic is complete?
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List prerequisite epics, design decisions, research, tools, or assets.
+    validations:
+      required: false
+  - type: textarea
+    id: open-questions
+    attributes:
+      label: Open questions
+      description: Capture unknowns that must be resolved before or during the epic.
+    validations:
+      required: false

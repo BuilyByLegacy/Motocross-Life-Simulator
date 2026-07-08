@@ -61,3 +61,21 @@ body:
       placeholder: |
         - design/02_Engines/Opportunity_Engine.md
         - Related issue: #123
+
+  - type: input
+    id: related-epic
+    attributes:
+      label: Related epic
+      placeholder: "EPIC: Road to Loretta's"
+
+  - type: input
+    id: design-bible-section
+    attributes:
+      label: Related Design Bible section
+      placeholder: "Legacy Bible > Career > Amateur Progression"
+
+  - type: textarea
+    id: open-questions
+    attributes:
+      label: Open questions
+      placeholder: "List unknowns, risks, or decisions that need owner input."
