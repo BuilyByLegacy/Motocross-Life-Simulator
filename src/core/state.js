@@ -117,6 +117,7 @@ export function createInitialState(riderName = 'Riley', seed = Date.now(), birth
     programSet: false, // has the player built this season's program yet?
     seasonGoals: [], // chosen season goals (issue #54)
     calendar: buildScheduleFromProgram(EVENT_POOL(), null), // built from the program
+    lorettaPath: null, // Road to Loretta's progression, hydrated by Game (issue #58)
     seasonNumber: 1,
     startYear, // calendar year of season 1; season year = startYear + seasonNumber - 1
     _preparedWeek: 0, // guards once-per-week setup across save/load

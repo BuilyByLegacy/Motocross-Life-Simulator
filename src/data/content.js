@@ -1854,15 +1854,18 @@ export function EVENT_POOL() {
   const DIST = { local: 0, regional: 4, national: 9 };
   const mk = (week, i, level, name) => {
     const s = SERIES[level];
+    const isQualifier = /Qualifier/.test(name);
     return {
       id: `w${week}_${level}`, week, round: i + 1, level, name,
       laps: 5 + Math.floor(i / 2), motos: 2,
       field: Math.min(0.82, s.baseField + i * 0.02),
       riders: s.fieldSize, entryMult: s.entryMult,
       entry: Math.round(35 * s.entryMult),
-      category: /Qualifier/.test(name) ? 'qualifier' : 'race',
+      category: isQualifier ? 'qualifier' : 'race',
       location: { name: name.replace(/ —.*/, ''), distance: DIST[level] },
       travel: level === 'local' ? 'Close to home' : level === 'regional' ? 'A few hours away' : 'A long haul',
+      // Road to Loretta's metadata (issue #58): qualifiers are the first rung.
+      ...(isQualifier ? { lorettaStage: 'area', region: 'Northeast' } : {}),
     };
   };
   return {
@@ -1901,7 +1904,8 @@ export function buildScheduleFromProgram(pool = EVENT_POOL(), program = null) {
         cal.push({
           week, title: `${LEVEL_LABEL[ev.level]} · ${ev.name}`,
           race: { name: ev.name, kind: ev.level, series: ev.level, round: ev.round,
-            laps: ev.laps, motos: ev.motos, field: ev.field, riders: ev.riders, entryMult: ev.entryMult },
+            laps: ev.laps, motos: ev.motos, field: ev.field, riders: ev.riders, entryMult: ev.entryMult,
+            category: ev.category, lorettaStage: ev.lorettaStage, region: ev.region },
         });
       } else {
         cal.push({ week, title: 'Open Weekend', note: 'No race booked — a free weekend to practice, wrench, or rest.' });

@@ -593,8 +593,20 @@ export class App {
       ),
       r.overBudget ? el('div', { class: 'hint', style: 'margin-top:8px' }, `⚠️ About $${r.shortfall} past your money — you'll be earning and selling to cover it.`) : null,
       ...r.riskNotes.slice(0, 4).map((n) => el('div', { class: 'small', style: 'color:var(--gold);margin-top:4px' }, '• ' + n)),
-      ...r.lorettaWarnings.map((n) => el('div', { class: 'small', style: 'color:var(--red);margin-top:4px' }, '• ' + n)),
+      ...this.lorettaPathNotes(),
     );
+  }
+
+  // Road to Loretta's path warnings for the current selection (issue #62).
+  lorettaPathNotes() {
+    const g = this.game;
+    const warns = g.lorettaWarnings(this._programSel);
+    return warns.map((w) => {
+      const color = w.severity === 'high' ? 'var(--red)' : 'var(--gold)';
+      return el('div', { class: 'small', style: `color:${color};margin-top:4px` },
+        el('span', {}, '🏁 ' + w.message),
+        w.action ? el('span', { class: 'faint' }, ' — ' + w.action) : null);
+    });
   }
 
   confirmProgram(edit) {
@@ -604,11 +616,35 @@ export class App {
     else this.handlePlanning();
   }
 
+  // Road to Loretta's dream tracker (issue #61). Null until the path is active.
+  lorettaDreamPanel() {
+    const g = this.game;
+    const d = g.lorettas.dreamSummary();
+    if (!d.active) return null;
+    const stageLabel = { none: 'Chasing', area: 'Area cleared', regional: 'Loretta’s bound!', national: 'At the Ranch' }[d.furthestStage] ?? 'Chasing';
+    const cls = d.qualifiedForNational ? 'lorettas-panel qualified' : 'lorettas-panel';
+    return el('div', { class: cls },
+      el('div', { class: 'eyebrow' }, '🏆 Road to Loretta’s'),
+      el('div', { class: 'lp-head' }, d.headline),
+      el('div', { class: 'lp-track' },
+        ...['area', 'regional', 'national'].map((s, i) => {
+          const order = { none: -1, area: 0, regional: 1, national: 2 }[d.furthestStage];
+          const on = order >= i;
+          const label = ['Area', 'Regional', "Loretta's"][i];
+          return el('div', { class: 'lp-step' + (on ? ' on' : '') },
+            el('span', { class: 'lp-dot' }, on ? '●' : '○'), el('span', {}, label));
+        }),
+      ),
+      d.region ? el('div', { class: 'small faint' }, `${d.region} region · ${d.totalAttempts} attempt${d.totalAttempts === 1 ? '' : 's'} · ${stageLabel}`) : null,
+    );
+  }
+
   // ---- Season / monthly calendar (issue #5) -------------------------------
   viewSeasonBoard() {
     const g = this.game;
     const cal = g.state.calendar;
     return el('div', {},
+      this.lorettaDreamPanel(),
       el('div', { class: 'card' },
         el('div', { class: 'eyebrow' }, `${g.series.icon} ${g.series.label} · ${g.seasonYear}`),
         el('div', { style: 'display:flex;justify-content:space-between;align-items:center' },

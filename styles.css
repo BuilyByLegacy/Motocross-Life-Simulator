@@ -253,6 +253,16 @@ button { font-family: inherit; }
 .fc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; margin-top: 8px; }
 .fc-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.82rem; padding: 2px 0; border-bottom: 1px dashed var(--line); }
 
+/* ---- Road to Loretta's dream panel ---- */
+.lorettas-panel { background: linear-gradient(180deg, #241a10, var(--panel)); border: 1px solid var(--amber); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+.lorettas-panel.qualified { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+.lorettas-panel .lp-head { font-size: 0.92rem; font-weight: 600; color: var(--amber-2); margin: 4px 0 8px; }
+.lp-track { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.lp-step { display: flex; align-items: center; gap: 4px; font-size: 0.74rem; color: var(--ink-faint); }
+.lp-step:not(:last-child)::after { content: '→'; margin-left: 6px; color: var(--line); }
+.lp-step.on { color: var(--gold); font-weight: 600; }
+.lp-step .lp-dot { font-size: 0.7rem; }
+
 /* ---- Season / monthly calendar ---- */
 .season-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .season-cell { border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; background: var(--panel-2); }

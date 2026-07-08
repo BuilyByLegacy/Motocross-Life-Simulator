@@ -17,6 +17,7 @@ import { OpportunityEngine } from './engines/opportunityEngine.js';
 import { MarketplaceEngine } from './engines/marketplaceEngine.js';
 import { SponsorEngine } from './engines/sponsorEngine.js';
 import { SeasonPlanner } from './systems/seasonPlanner.js';
+import { LorettasPath, classifyEvent } from './systems/lorettasPath.js';
 import { RaceSession } from './engines/raceEngine.js';
 
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
@@ -71,6 +72,9 @@ export class Game {
     this.sponsors = new SponsorEngine(this);
     this.sponsors.wire();
     if (!this.state.sponsors) this.state.sponsors = [];
+    // Road to Loretta's progression (issues #25/#58–#62). Live instance,
+    // snapshotted into state.lorettaPath at save time.
+    this.lorettas = LorettasPath.fromJSON(this.state.lorettaPath);
 
     this.currentRace = null;
     this._weekLog = null;
@@ -147,6 +151,7 @@ export class Game {
   // State is plain data; a few engines hold state outside it (RNG position,
   // the story "used" sets, the simulated rival field), so capture those too.
   toSave() {
+    this.state.lorettaPath = this.lorettas.toJSON(); // snapshot the live path
     return {
       v: 2,
       seed: this.rng.seed,
@@ -168,6 +173,7 @@ export class Game {
     g.world.riders = save.world.riders;
     g.world._newsIdx = save.world.newsIdx;
     g.relationships._cache = new Map(); // re-wrap the loaded relationship records
+    g.lorettas = LorettasPath.fromJSON(g.state.lorettaPath); // re-wrap the path
     return g;
   }
 
@@ -196,13 +202,22 @@ export class Game {
     const available = [];
     for (const w of Object.keys(pool)) {
       for (const ev of pool[w]) {
-        available.push({ id: ev.id, day: ev.week * 7, title: ev.name, level: ev.level, category: ev.category, location: ev.location, entryFee: ev.entry });
+        available.push({ id: ev.id, day: ev.week * 7, title: ev.name, level: ev.level, category: ev.category, location: ev.location, entryFee: ev.entry, region: ev.region, lorettaStage: ev.lorettaStage });
       }
     }
     const planner = new SeasonPlanner(available, { seasonDays: 84 });
     for (const [w, id] of Object.entries(program)) if (id) planner.addEvent(id, 'committed');
     for (const gtype of this.state.seasonGoals ?? []) planner.addGoal({ type: gtype });
     return planner;
+  }
+
+  // Road to Loretta's planner warnings for a program (issue #62). Uses the live
+  // path so warnings account for stages the rider has already cleared.
+  lorettaWarnings(program = this.state.program) {
+    const planner = this.buildPlanner(program);
+    const selected = planner.selectedEvents();
+    const hasLorettaGoal = (this.state.seasonGoals ?? []).includes('qualify_lorettas');
+    return this.lorettas.pathWarnings(selected, { klass: this.rider.klass, hasLorettaGoal });
   }
 
   // Total booked entry cost for the current program (issue #22).
@@ -670,6 +685,10 @@ export class Game {
       this.garage.trophies.push({ name: `${ordinal(overall)} Overall — ${result.race.name}`, week: this.week });
     }
 
+    // Road to Loretta's: if this was a qualifying event, advance the path and
+    // turn any milestones into memories (issues #25/#31/#58–#62).
+    this.recordLorettaResult(result);
+
     // Parent lens: the result lands on the family, not just the stopwatch.
     if (this.isParent) {
       if (result.dnf) {
@@ -704,6 +723,38 @@ export class Game {
     this.log(`🏁 ${result.race.name}: ${result.dnf ? 'DNF' : ordinal(overall) + ' overall'} (+${result.points} pts).`);
     this.currentRace = null;
     return result;
+  }
+
+  // Advance the Road to Loretta's from a race result and record milestones as
+  // memories (issues #25/#31/#58–#62). No-op for non-qualifying races.
+  recordLorettaResult(result) {
+    const race = result.race;
+    if (!race || !classifyEvent(race)) return null;
+    const outcome = this.lorettas.recordAttempt(race, {
+      klass: result.klass,
+      region: race.region,
+      finish: result.dnf ? (result.fieldSize ?? 30) : result.overall,
+      fieldSize: result.fieldSize ?? 30,
+      day: (this.week - 1) * 7,
+      eventName: race.name,
+    });
+    if (!outcome) return null;
+    for (const m of outcome.milestones) {
+      this.memory.record({
+        type: 'race_result', title: m.title, summary: m.summary,
+        emotion: m.emotion ?? [], people: this.isParent ? ['child'] : ['dad', 'mom'],
+        tags: m.tags ?? ['lorettas'], importance: m.importance ?? 70, force: true,
+      });
+    }
+    if (outcome.advanced) {
+      const label = outcome.nextStage === 'national' ? 'Loretta Lynn’s' : 'the Regional Championship';
+      this.addNews(`${this.rider.name} advanced out of ${race.name} — through to ${label}!`, 'world');
+      this.log(`🎟️ Advanced to ${label}.`);
+    } else if (outcome.eliminated) {
+      this.addNews(`${this.rider.name} came up short at ${race.name} — the Road to Loretta’s ends here for now.`, 'world');
+      this.log(`🚧 Didn’t transfer at ${race.name}.`);
+    }
+    return outcome;
   }
 
   // ---- multi-season career -------------------------------------------------
