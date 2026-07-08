@@ -102,6 +102,105 @@ function extractLabels(body) {
   return [...labels];
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function githubRequest(endpoint, { method = 'GET', body, token, retries = 0, retryDelayMs = 1000 }) {
+  let attempt = 0;
+
+  while (true) {
+    const response = await fetch(`${API_ROOT}${endpoint}`, {
+      method,
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'motocross-life-simulator-issue-importer',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : null;
+
+    if (response.ok) {
+      return data;
+    }
+
+    const isRetryable = response.status === 403 || response.status === 429 || response.status >= 500;
+    if (attempt < retries && isRetryable) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      const delay = Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : retryDelayMs * (attempt + 1);
+
+      console.warn(`GitHub API ${method} ${endpoint} failed (${response.status}); retrying in ${delay}ms.`);
+      await sleep(delay);
+      attempt += 1;
+      continue;
+    }
+
+    throw new Error(`GitHub API ${method} ${endpoint} failed (${response.status}): ${data?.message || text}`);
+  }
+}
+
+async function listExistingOpenIssueTitles({ repo, token }) {
+  const titles = new Set();
+  let page = 1;
+
+  while (true) {
+    const issues = await githubRequest(`/repos/${repo}/issues?state=open&per_page=100&page=${page}`, { token });
+    for (const issue of issues) {
+      if (!issue.pull_request) {
+        titles.add(issue.title);
+      }
+    }
+
+    if (issues.length < 100) break;
+    page += 1;
+  }
+
+  return titles;
+}
+
+async function listExistingLabelNames({ repo, token }) {
+  const labels = new Set();
+  let page = 1;
+
+  while (true) {
+    const data = await githubRequest(`/repos/${repo}/labels?per_page=100&page=${page}`, { token });
+    for (const label of data) {
+      labels.add(label.name);
+    }
+
+    if (data.length < 100) break;
+    page += 1;
+  }
+
+  return labels;
+}
+
+async function ensureLabel({ repo, label, token, cache }) {
+  if (cache.has(label)) return;
+
+  await githubRequest(`/repos/${repo}/labels`, {
+    method: 'POST',
+    token,
+    retries: 3,
+    retryDelayMs: 1000,
+    body: {
+      name: label,
+      color: '5319e7',
+      description: 'Created automatically by the Markdown issue draft importer.',
+    },
+  });
+  cache.add(label);
+  console.log(`Created missing label: ${label}`);
+  await sleep(250);
 async function githubRequest(endpoint, { method = 'GET', body, token }) {
   const response = await fetch(`${API_ROOT}${endpoint}`, {
     method,
@@ -181,6 +280,17 @@ async function main() {
   if (!token) throw new Error('GITHUB_TOKEN is required unless --dry-run is used.');
   if (!repo) throw new Error('GITHUB_REPOSITORY is required unless --dry-run is used.');
 
+  const existingIssueTitles = await listExistingOpenIssueTitles({ repo, token });
+  const labelCache = await listExistingLabelNames({ repo, token });
+
+  console.log(`Loaded ${existingIssueTitles.size} existing open issue title(s) and ${labelCache.size} label(s).`);
+
+  for (const issue of issues) {
+    if (args.duplicateMode === 'skip' && existingIssueTitles.has(issue.title)) {
+      console.log(`Skipped existing open issue: ${issue.title}`);
+      continue;
+    }
+
   const labelCache = new Set();
 
   for (const issue of issues) {
@@ -188,6 +298,11 @@ async function main() {
       await ensureLabel({ repo, label, token, cache: labelCache });
     }
 
+    const created = await githubRequest(`/repos/${repo}/issues`, {
+      method: 'POST',
+      token,
+      retries: 3,
+      retryDelayMs: 1000,
     if (args.duplicateMode === 'skip') {
       const existing = await findExistingIssue({ repo, title: issue.title, token });
       if (existing) {
@@ -205,6 +320,9 @@ async function main() {
         labels: issue.labels,
       },
     });
+    existingIssueTitles.add(issue.title);
+    console.log(`Created issue #${created.number}: ${created.title}`);
+    await sleep(500);
     console.log(`Created issue #${created.number}: ${created.title}`);
   }
 }
