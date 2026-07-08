@@ -86,6 +86,14 @@ const BIKE_BY_CLASS = {
   Supermini: { name: 'Cobra CX-Supermini', manufacturer: 'Cobra', serialPrefix: 'CXSM' },
 };
 
+// Consumable parts shown as life bars in the garage (issue #15).
+export const PART_INFO = [
+  { key: 'tires', label: 'Tires', icon: '🛞', affects: 'grip & handling', buy: 'mx33' },
+  { key: 'topEnd', label: 'Top End', icon: '⚙️', affects: 'reliability & power', buy: 'topend' },
+  { key: 'chain', label: 'Chain & Sprockets', icon: '⛓️', affects: 'reliability', buy: 'chainkit' },
+  { key: 'brakes', label: 'Brakes', icon: '🛑', affects: 'corner speed', buy: 'brakepads' },
+];
+
 // The starting/each-class bike — an Asset with identity, history, wear (DD-0011).
 export function BIKE_FOR_CLASS(klass = '50cc', year = 2019) {
   const spec = BIKE_BY_CLASS[klass] ?? BIKE_BY_CLASS['65cc'];
@@ -103,7 +111,9 @@ export function BIKE_FOR_CLASS(klass = '50cc', year = 2019) {
     performance: 40, // 0-100, raw speed potential from setup/parts
     handling: 42, // cornering/suspension quality
     starts: 40, // gate/holeshot hardware
-    tireWear: 0, // 0-100, consumable wear (issue #3); high wear hurts handling
+    // Consumable parts, each with remaining life 0–100 (100 = fresh) — issue #15.
+    // Worn parts hurt on race day and eventually need replacing (marketplace).
+    parts: { tires: 100, topEnd: 100, chain: 100, brakes: 100 },
     installed: [], // installed parts by name
     ownership: ['Bought used from a family two towns over'],
     maintenance: [],
@@ -188,7 +198,7 @@ export const ACTIVITIES = [
       // A track day wears whichever bike you practice on (the beater if you own
       // one) — protecting the race bike (issue #3).
       const tb = g.trainBike();
-      g.wearBike(tb, { condition: -9, tire: 2 });
+      g.wearBike(tb, { condition: -9, parts: { tires: -6, chain: -4, brakes: -2 } });
       if (g.rng.chance(0.35)) g.skill('raceIQ', 1);
       const on = tb.role === 'practice' ? ' (on the practice bike)' : '';
       return `You put in motos until the light went flat${on}. Tired, but faster.`;
@@ -341,13 +351,10 @@ export const MARKET_POOL = [
     floor: 65,
     seller: 'Honest racing dad',
     blurb: 'Barely a moto on them. Kid moved up a class.',
-    effect: 'Fresh tires: handling +6, wear reset',
+    effect: 'Fresh tires — full grip restored',
     install(g) {
-      g.bike.handling += 6;
-      g.bike.tireWear = 0; // brand-new rubber (issue #3)
-      g.bikeCondition(4);
-      g.bike.installed = g.bike.installed.filter((n) => n !== 'Dunlop MX33 tires');
-      g.bike.installed.push('Dunlop MX33 tires');
+      g.ensureParts(g.bike).tires = 100; // brand-new rubber (issue #15)
+      g.bikeCondition(3);
     },
   },
   {
@@ -387,12 +394,41 @@ export const MARKET_POOL = [
     floor: 130,
     seller: 'Dealer',
     blurb: 'New piston, rings, gaskets. Peace of mind in a box.',
-    effect: 'Reliability +14, condition +10',
+    effect: 'Fresh top-end — reliability restored',
     install(g) {
-      g.bike.reliability += 14;
-      g.bikeCondition(10);
-      g.bike.installed.push('Fresh top-end');
+      g.ensureParts(g.bike).topEnd = 100; // issue #15
+      g.bike.reliability = Math.min(100, g.bike.reliability + 6);
+      g.bikeCondition(6);
       g.bike.maintenance.push('Top-end rebuilt');
+    },
+  },
+  {
+    key: 'chainkit',
+    name: 'Chain & sprocket kit',
+    type: 'part',
+    ask: 90,
+    floor: 65,
+    seller: 'Dealer',
+    blurb: 'New chain, front and rear sprockets. The old one was stretched to the marks.',
+    effect: 'Fresh chain & sprockets — reliability restored',
+    install(g) {
+      g.ensureParts(g.bike).chain = 100; // issue #15
+      g.bikeCondition(3);
+      g.bike.maintenance.push('Chain & sprockets replaced');
+    },
+  },
+  {
+    key: 'brakepads',
+    name: 'Fresh brake pads',
+    type: 'part',
+    ask: 55,
+    floor: 40,
+    seller: 'Dealer',
+    blurb: 'Front and rear pads. You could see metal on the old ones.',
+    effect: 'Fresh brakes — corner speed restored',
+    install(g) {
+      g.ensureParts(g.bike).brakes = 100; // issue #15
+      g.bike.maintenance.push('Brake pads replaced');
     },
   },
   {

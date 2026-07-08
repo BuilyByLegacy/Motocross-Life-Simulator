@@ -33,8 +33,21 @@ export class MarketplaceEngine {
       return !st.listings.some((l) => l.key === it.key);
     });
 
+    // If a consumable part is worn, make sure its replacement shows up so the
+    // marketplace always has a reason to visit (issue #15).
+    const parts = g.ensureParts(g.bike);
+    const wornKeys = { tires: 'mx33', topEnd: 'topend', chain: 'chainkit', brakes: 'brakepads' };
+    const shuffled = [];
+    for (const [pk, itemKey] of Object.entries(wornKeys)) {
+      if ((parts[pk] ?? 100) < 45) {
+        const it = MARKET_POOL.find((x) => x.key === itemKey);
+        if (it && !st.listings.some((l) => l.key === itemKey)) shuffled.push(it);
+      }
+    }
+
     let want = force ? g.rng.int(2, 3) : g.rng.int(0, 2);
-    const shuffled = g.rng.shuffle(candidates);
+    want = Math.max(want, shuffled.length);
+    shuffled.push(...g.rng.shuffle(candidates.filter((c) => !shuffled.includes(c))));
     for (const it of shuffled) {
       if (want <= 0) break;
       if (it.rare && !g.rng.chance(0.25)) continue; // rare listings are, well, rare
@@ -114,10 +127,14 @@ export class MarketplaceEngine {
     if (this.listings.length === 0) return null;
     const affordable = this.listings.filter((l) => l.price <= g.family.money - 300);
     if (affordable.length === 0) return null;
-    // Prioritise reliability/condition when the bike is rough.
+    // Prioritise replacing worn consumable parts (issue #15), then upgrades.
+    const parts = g.ensureParts(g.bike);
     let pick = null;
-    if (g.bike.reliability < 55) pick = affordable.find((l) => l.key === 'topend');
-    if (!pick && g.bike.condition < 55) pick = affordable.find((l) => l.type === 'tires' || l.key === 'topend');
+    if ((parts.topEnd ?? 100) < 45) pick = affordable.find((l) => l.key === 'topend');
+    if (!pick && (parts.tires ?? 100) < 45) pick = affordable.find((l) => l.key === 'mx33');
+    if (!pick && (parts.chain ?? 100) < 45) pick = affordable.find((l) => l.key === 'chainkit');
+    if (!pick && (parts.brakes ?? 100) < 45) pick = affordable.find((l) => l.key === 'brakepads');
+    if (!pick && g.bike.reliability < 55) pick = affordable.find((l) => l.key === 'topend');
     if (!pick) pick = affordable.find((l) => l.type === 'part' || l.type === 'service');
     if (!pick) return null;
     const res = this.buy(pick.id);

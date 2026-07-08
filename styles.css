@@ -285,6 +285,18 @@ button { font-family: inherit; }
 .class-chip input { width: 16px; height: 16px; accent-color: var(--amber); }
 .extra-results { margin: 6px 0; padding: 6px 0; border-top: 1px dashed var(--line); }
 
+/* ---- Bike part life bars (issue #15) ---- */
+.parts { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+.parts.compact { margin-top: 5px; gap: 3px; }
+.part-row { display: grid; grid-template-columns: 1fr 90px 34px; gap: 8px; align-items: center; font-size: 0.8rem; }
+.parts.compact .part-row { grid-template-columns: 1fr 60px 30px; font-size: 0.7rem; }
+.part-name { color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.part-bar { height: 7px; border-radius: 4px; background: #2f3641; overflow: hidden; }
+.part-bar > span { display: block; height: 100%; background: var(--green); }
+.part-bar.warn > span { background: var(--gold); }
+.part-bar.bad > span { background: var(--red); }
+.part-life { text-align: right; color: var(--ink-faint); }
+
 /* ---- Bikes list ---- */
 .bike-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); }
 .bike-row:last-child { border-bottom: 0; }

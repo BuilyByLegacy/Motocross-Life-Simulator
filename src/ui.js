@@ -6,7 +6,7 @@
 
 import { Game, SIM_DEPTHS, ordinal } from './game.js';
 import { RACE_STRATEGIES, estimateForm } from './engines/raceEngine.js';
-import { SERIES, CAMPS as CAMPS_REF } from './data/content.js';
+import { SERIES, CAMPS as CAMPS_REF, PART_INFO as PART_INFO_REF } from './data/content.js';
 
 // tiny hyperscript helper
 function el(tag, props = {}, ...kids) {
@@ -1080,6 +1080,22 @@ export class App {
     this.render();
   }
 
+  renderPartBars(bike, compact = false) {
+    const g = this.game;
+    const parts = g.ensureParts(bike);
+    return el('div', { class: 'parts' + (compact ? ' compact' : '') },
+      ...PART_INFO_REF.map((p) => {
+        const life = parts[p.key] ?? 100;
+        const cls = life > 55 ? '' : life > 25 ? ' warn' : ' bad';
+        return el('div', { class: 'part-row' },
+          el('span', { class: 'part-name' }, `${p.icon} ${p.label}`),
+          el('div', { class: 'part-bar' + cls }, el('span', { style: `width:${life}%` })),
+          el('span', { class: 'part-life mono' }, `${life}%`),
+        );
+      }),
+    );
+  }
+
   renderGarage() {
     const g = this.game;
     const b = g.bike;
@@ -1088,7 +1104,7 @@ export class App {
         el('div', { class: 'eyebrow' }, 'The Garage — home, workshop, museum'),
         el('h2', {}, b.name),
         el('p', { class: 'small faint' }, `#${b.serial} · Condition ${b.condition} · Reliability ${b.reliability} · Handling ${b.handling} · Performance ${b.performance}`),
-        el('p', { class: 'small' }, `🛞 Tire wear: `, el('b', { style: (b.tireWear ?? 0) > 60 ? 'color:var(--red)' : 'color:var(--ink)' }, `${b.tireWear ?? 0}%`), (b.tireWear ?? 0) > 60 ? el('span', { class: 'faint' }, ' — worn; grip is going. Buy fresh tires.') : null),
+        this.renderPartBars(b),
         b.installed.length ? el('p', { class: 'small' }, '🔩 Installed: ' + b.installed.join(', ')) : el('p', { class: 'small faint' }, 'Bone stock, for now.'),
         (b.sponsors && b.sponsors.length) ? el('p', { class: 'small' }, '🏷️ Sponsor logos: ' + b.sponsors.join(', ')) : null,
         b.memories.length ? el('div', {},
@@ -1103,7 +1119,8 @@ export class App {
           return el('div', { class: 'bike-row' + (bk.role === 'race' ? ' race' : '') },
             el('div', { class: 'bike-info' },
               el('div', {}, el('b', {}, bk.name), ' ', el('span', { class: 'faint small' }, roleLabel)),
-              el('div', { class: 'small faint' }, `${bk.klass} · cond ${bk.condition} · rel ${bk.reliability} · tire wear ${bk.tireWear ?? 0}%`),
+              el('div', { class: 'small faint' }, `${bk.klass} · cond ${bk.condition} · rel ${bk.reliability}`),
+              this.renderPartBars(bk, true),
             ),
             bk.role !== 'race' ? el('button', { class: 'btn small', onclick: () => { g.setRaceBike(bk.assetId); this._flash(`${bk.name} is now your race bike.`); this.render(); } }, 'Make race bike') : el('span', { class: 'faint small' }, 'Active'),
           );
@@ -1130,6 +1147,8 @@ export class App {
       holeshot: ['🚦', '#2c3a2f,#1c2620'],
       pipe: ['💨', '#3a2f24,#241d16'],
       topend: ['⚙️', '#2f3540,#1e232b'],
+      chainkit: ['⛓️', '#2a2f36,#191d22'],
+      brakepads: ['🛑', '#331f1f,#211313'],
       chest: ['🦺', '#3a3320,#242015'],
       susp: ['🔧', '#26333d,#182027'],
       practicebike: ['🏍️', '#33241f,#211713'],

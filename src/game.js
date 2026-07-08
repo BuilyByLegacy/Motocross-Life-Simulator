@@ -384,17 +384,26 @@ export class Game {
     return true;
   }
 
-  // Apply wear to a specific bike (defaults to the race bike).
-  wearBike(bike, { condition = 0, reliability = 0, tire = 0 } = {}) {
+  // Ensure a bike has the consumable-parts map (migrates older saves) — #15.
+  ensureParts(bike) {
+    const b = bike ?? this.bike;
+    if (!b.parts) {
+      const t = 100 - (b.tireWear ?? 0);
+      b.parts = { tires: t, topEnd: 100, chain: 100, brakes: 100 };
+    }
+    return b.parts;
+  }
+
+  // Apply wear to a specific bike (defaults to the race bike). `parts` is a map
+  // of part-key -> life delta (negative = wear) — issue #15.
+  wearBike(bike, { condition = 0, reliability = 0, parts = null } = {}) {
     const b = bike ?? this.bike;
     if (condition) b.condition = clamp(b.condition + condition);
     if (reliability) b.reliability = clamp(b.reliability + reliability);
-    if (tire) b.tireWear = clamp((b.tireWear ?? 0) + tire, 0, 100);
-  }
-
-  // Consumable parts wear (issue #3). High tire wear hurts handling on race day.
-  wearParts(n) {
-    this.bike.tireWear = clamp((this.bike.tireWear ?? 0) + n, 0, 100);
+    if (parts) {
+      const p = this.ensureParts(b);
+      for (const [k, d] of Object.entries(parts)) p[k] = clamp((p[k] ?? 100) + d, 0, 100);
+    }
   }
 
   _activityCost(act) {
@@ -524,7 +533,7 @@ export class Game {
     // Physical toll & confidence swing. Wear the bike that actually raced.
     this.fatigue(26);
     const raced = this.ownedBikes().find((b) => b.assetId === result.bikeId) ?? this.bike;
-    this.wearBike(raced, { condition: -15, tire: 5 });
+    this.wearBike(raced, { condition: -15, parts: { tires: -9, topEnd: -5, chain: -6, brakes: -5 } });
     const overall = result.overall;
     if (result.dnf) this.confidence(-8);
     else if (overall <= 3) this.confidence(11);

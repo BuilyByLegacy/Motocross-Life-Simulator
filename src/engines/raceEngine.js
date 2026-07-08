@@ -34,8 +34,10 @@ function playerBaseRating(g, overrideBike) {
   if (g.rider.injury && g.rider.injury.weeksOut > 0) rating -= 8;
   if (g.flag('mud_ready')) rating += 4; // prepped for the conditions
   if (g.flag('pit_help')) rating += 4; // paid pit support (Parent mode)
-  const tw = b.tireWear ?? 0;
-  if (tw > 50) rating -= Math.min(6, (tw - 50) * 0.12); // worn tires hurt grip (issue #3)
+  // Worn consumable parts cost you on race day (issue #15).
+  const parts = b.parts ?? { tires: 100 - (b.tireWear ?? 0), brakes: 100 };
+  if ((parts.tires ?? 100) < 50) rating -= Math.min(7, (50 - parts.tires) * 0.14); // grip
+  if ((parts.brakes ?? 100) < 45) rating -= Math.min(4, (45 - parts.brakes) * 0.08); // corner speed
   return rating;
 }
 
@@ -254,7 +256,11 @@ export class RaceSession {
   }
 
   _reliabilityFor(r) {
-    return r.isPlayer ? this.bike.reliability : 72;
+    if (!r.isPlayer) return 72;
+    // A tired top-end or a stretched chain makes a mechanical DNF more likely.
+    const p = this.bike.parts ?? { topEnd: 100, chain: 100 };
+    const penalty = (100 - (p.topEnd ?? 100)) * 0.28 + (100 - (p.chain ?? 100)) * 0.12;
+    return Math.max(0, this.bike.reliability - penalty);
   }
 
   _maybeInjury(severe) {
