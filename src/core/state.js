@@ -115,6 +115,7 @@ export function createInitialState(riderName = 'Riley', seed = Date.now(), birth
     schoolMode: 'school', // 'school' | 'homeschool' (issue #5)
     program: defaultProgram(EVENT_POOL()), // chosen events per race weekend (issue #22)
     programSet: false, // has the player built this season's program yet?
+    seasonGoals: [], // chosen season goals (issue #54)
     calendar: buildScheduleFromProgram(EVENT_POOL(), null), // built from the program
     seasonNumber: 1,
     startYear, // calendar year of season 1; season year = startYear + seasonNumber - 1

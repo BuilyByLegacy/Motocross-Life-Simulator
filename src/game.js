@@ -16,6 +16,7 @@ import { StoryEngine } from './engines/storyEngine.js';
 import { OpportunityEngine } from './engines/opportunityEngine.js';
 import { MarketplaceEngine } from './engines/marketplaceEngine.js';
 import { SponsorEngine } from './engines/sponsorEngine.js';
+import { SeasonPlanner } from './systems/seasonPlanner.js';
 import { RaceSession } from './engines/raceEngine.js';
 
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
@@ -188,6 +189,22 @@ export class Game {
     this.state.programSet = true;
     this.rebuildCalendar();
   }
+  // Build a SeasonPlanner reflecting a program map + this season's goals, for
+  // budget/travel forecasting and plan review (issues #53–#57).
+  buildPlanner(program = this.state.program) {
+    const pool = this.eventPool();
+    const available = [];
+    for (const w of Object.keys(pool)) {
+      for (const ev of pool[w]) {
+        available.push({ id: ev.id, day: ev.week * 7, title: ev.name, level: ev.level, category: ev.category, location: ev.location, entryFee: ev.entry });
+      }
+    }
+    const planner = new SeasonPlanner(available, { seasonDays: 84 });
+    for (const [w, id] of Object.entries(program)) if (id) planner.addEvent(id, 'committed');
+    for (const gtype of this.state.seasonGoals ?? []) planner.addGoal({ type: gtype });
+    return planner;
+  }
+
   // Total booked entry cost for the current program (issue #22).
   programCost() {
     const pool = this.eventPool();
@@ -773,6 +790,7 @@ export class Game {
     // their schedule at season start (issue #22).
     this.state.program = defaultProgram(this.eventPool());
     this.state.programSet = false;
+    this.state.seasonGoals = [];
     this.rebuildCalendar();
     this.state.schedule = [];
     this.state.pendingScenario = null;

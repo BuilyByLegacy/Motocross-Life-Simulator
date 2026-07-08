@@ -540,17 +540,60 @@ export class App {
         el('div', { class: 'eyebrow' }, '🗓️ ' + g.seasonYear + ' Race Program'),
         el('h2', {}, 'Build your schedule'),
         el('p', { class: 'small muted' }, 'Run the local rounds, or travel to the big regional and national events. Pick which events to attend — you can only be one place each weekend, and entries add up.'),
+        this.programGoals(),
         el('div', { class: 'prog-summary' },
           el('span', {}, `Booked entries: `, el('b', {}, '$' + cost)),
           el('span', { class: 'faint' }, ` · You have $${g.family.money.toLocaleString()}`),
         ),
         ...weeks.map(weekBlock),
+        this.programReview(),
         el('div', { class: 'toolbar', style: 'margin-top:12px' },
           edit ? el('button', { class: 'btn ghost', onclick: () => { this._seasonView = true; this.render(); } }, 'Cancel') : null,
           el('button', { class: 'btn primary', onclick: () => this.confirmProgram(edit) },
             edit ? 'Save program' : 'Lock in the program →'),
         ),
       ),
+    );
+  }
+
+  // Season goals (issue #54) — toggle priorities that shape the plan review.
+  programGoals() {
+    const g = this.game;
+    const goals = g.state.seasonGoals ?? (g.state.seasonGoals = []);
+    const opts = [
+      ['win_title', '🏆 Win a title'],
+      ['qualify_lorettas', "🎟️ Qualify for Loretta's"],
+      ['preserve_budget', '💰 Keep the budget'],
+      ['family_time', '🏡 Family time'],
+    ];
+    return el('div', { class: 'field', style: 'margin:0 0 10px' },
+      el('label', {}, "This year's goals"),
+      el('div', { class: 'goal-chips' },
+        ...opts.map(([k, label]) =>
+          el('button', { class: 'goal-chip' + (goals.includes(k) ? ' on' : ''), onclick: () => {
+            const i = goals.indexOf(k); if (i >= 0) goals.splice(i, 1); else goals.push(k); this.render();
+          } }, label)),
+      ),
+    );
+  }
+
+  // Live budget/travel forecast + plan review (issues #55, #57).
+  programReview() {
+    const g = this.game;
+    const planner = g.buildPlanner(this._programSel);
+    const r = planner.reviewSummary(g.family.money);
+    const b = planner.forecast(g.family.money).season;
+    const line = (k, v) => el('div', { class: 'fc-row' }, el('span', { class: 'faint' }, k), el('span', { class: 'mono' }, '$' + v));
+    return el('div', { class: 'prog-review' },
+      el('div', { class: 'eyebrow' }, '📋 Plan Review'),
+      el('div', { class: 'small' }, `${r.totalRaces} races · ${b.travelDays} days on the road · est. $${b.total}`),
+      el('div', { class: 'fc-grid' },
+        line('Entries', b.entry), line('Fuel', b.fuel), line('Lodging', b.lodging),
+        line('Food', b.food), line('Maintenance', b.maintenance), line('Contingency', b.contingency),
+      ),
+      r.overBudget ? el('div', { class: 'hint', style: 'margin-top:8px' }, `⚠️ About $${r.shortfall} past your money — you'll be earning and selling to cover it.`) : null,
+      ...r.riskNotes.slice(0, 4).map((n) => el('div', { class: 'small', style: 'color:var(--gold);margin-top:4px' }, '• ' + n)),
+      ...r.lorettaWarnings.map((n) => el('div', { class: 'small', style: 'color:var(--red);margin-top:4px' }, '• ' + n)),
     );
   }
 

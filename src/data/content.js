@@ -1851,6 +1851,7 @@ const RACE_WEEKS = [3, 5, 7, 9, 11];
 // Candidate events for each race weekend. Every weekend has a local option;
 // some offer a bigger away race instead (you can only be one place at once).
 export function EVENT_POOL() {
+  const DIST = { local: 0, regional: 4, national: 9 };
   const mk = (week, i, level, name) => {
     const s = SERIES[level];
     return {
@@ -1859,6 +1860,8 @@ export function EVENT_POOL() {
       field: Math.min(0.82, s.baseField + i * 0.02),
       riders: s.fieldSize, entryMult: s.entryMult,
       entry: Math.round(35 * s.entryMult),
+      category: /Qualifier/.test(name) ? 'qualifier' : 'race',
+      location: { name: name.replace(/ —.*/, ''), distance: DIST[level] },
       travel: level === 'local' ? 'Close to home' : level === 'regional' ? 'A few hours away' : 'A long haul',
     };
   };

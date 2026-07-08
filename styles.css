@@ -244,6 +244,15 @@ button { font-family: inherit; }
 .prog-opt.locked { opacity: 0.5; cursor: default; }
 .prog-opt b { display: inline; }
 
+/* ---- Season goals + plan review ---- */
+.goal-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.goal-chip { border: 1.5px solid var(--line); background: var(--panel-2); color: var(--ink); border-radius: 999px; padding: 6px 11px; font-size: 0.8rem; cursor: pointer; transition: 0.12s; }
+.goal-chip:hover { border-color: var(--amber); }
+.goal-chip.on { border-color: var(--amber); background: linear-gradient(180deg, #2b2519, var(--panel-2)); color: var(--amber); }
+.prog-review { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 10px 0; }
+.fc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; margin-top: 8px; }
+.fc-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.82rem; padding: 2px 0; border-bottom: 1px dashed var(--line); }
+
 /* ---- Season / monthly calendar ---- */
 .season-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .season-cell { border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; background: var(--panel-2); }

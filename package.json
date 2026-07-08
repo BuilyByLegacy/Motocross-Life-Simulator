@@ -1,0 +1,10 @@
+{
+  "name": "legacy-motocross",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Motocross: Chasing the Dream — a sports life-simulation RPG prototype.",
+  "scripts": {
+    "test": "node --test"
+  }
+}
