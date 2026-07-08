@@ -1,0 +1,51 @@
+name: Implementation task
+description: Implement a scoped, approved change after research and design are ready.
+title: "Implement: "
+labels:
+  - type: implementation
+body:
+  - type: textarea
+    id: background
+    attributes:
+      label: Background
+      description: What context does an engineer or AI coding agent need before starting?
+    validations:
+      required: true
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Requirements
+      description: What must be built or changed?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What behavior must be observable when this is done?
+    validations:
+      required: true
+  - type: textarea
+    id: technical-notes
+    attributes:
+      label: Technical Notes
+      description: Mention relevant files, patterns, constraints, and migration concerns.
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: What must be completed or decided first?
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing
+      description: How should this change be tested?
+    validations:
+      required: true
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: What proves this implementation task is complete?
+    validations:
+      required: true

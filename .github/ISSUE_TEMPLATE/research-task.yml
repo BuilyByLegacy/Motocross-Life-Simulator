@@ -1,0 +1,49 @@
+name: Research task
+description: Gather real-world motocross, design, market, or technical research before decisions are made.
+title: "Research: "
+labels:
+  - type: research
+  - status: needs-research
+body:
+  - type: textarea
+    id: research-question
+    attributes:
+      label: Research question
+      description: What question must this research answer?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this matters
+      description: Why is this research important for authenticity, design, or production?
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources to investigate
+      description: List credible sources, interviews, videos, rulebooks, forums, or comparable games.
+    validations:
+      required: true
+  - type: textarea
+    id: findings-needed
+    attributes:
+      label: Findings needed
+      description: What specific findings should the researcher produce?
+    validations:
+      required: true
+  - type: textarea
+    id: usage
+    attributes:
+      label: How findings will be used
+      description: Explain which docs, systems, or decisions this research will inform.
+    validations:
+      required: true
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: What proves the research is complete?
+    validations:
+      required: true
