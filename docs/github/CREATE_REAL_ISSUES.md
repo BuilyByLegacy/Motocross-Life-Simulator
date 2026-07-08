@@ -11,7 +11,7 @@ Inputs:
 - **draft_path**: Markdown file or directory to import. The default is `docs/github/issues`.
 - **dry_run**: Keep this enabled first to preview what would be created without changing GitHub Issues.
 - **duplicate_mode**:
-  - `skip`: Do not create a new issue when an open issue with the exact same title already exists.
+  - `skip`: Do not create a new issue when an issue with the exact same title already exists.
   - `create`: Always create issues, even if the title already exists.
 
 ## Recommended Process
@@ -19,7 +19,7 @@ Inputs:
 1. Run the workflow with `dry_run` enabled.
 2. Review the workflow log and confirm the issue titles and labels are correct.
 3. Run the workflow again with `dry_run` disabled.
-4. Leave `duplicate_mode` set to `skip` unless duplicate open Issues are intentional.
+4. Leave `duplicate_mode` set to `skip` unless duplicate Issues are intentional.
 
 ## Draft Format
 
@@ -46,4 +46,4 @@ You can preview the same parsing locally without a GitHub token:
 node scripts/create-github-issues-from-drafts.js --path docs/github/issues --dry-run
 ```
 
-Creating real issues outside GitHub Actions requires `GITHUB_TOKEN` and `GITHUB_REPOSITORY` environment variables with permission to create Issues. The importer loads existing open issue titles once, checks duplicates locally, and retries issue/label creation requests with short delays to reduce rate-limit failures.
+Creating real issues outside GitHub Actions requires `GITHUB_TOKEN` and `GITHUB_REPOSITORY` environment variables with permission to create Issues.
