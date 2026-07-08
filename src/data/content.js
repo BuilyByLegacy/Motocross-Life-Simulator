@@ -1839,3 +1839,76 @@ export const BACKGROUNDS = [
     },
   },
 ];
+
+// ===========================================================================
+// RACE PROGRAM (issue #22) — you build your own schedule. Local rounds are
+// cheap and close; on some weekends you can instead travel to a regional or
+// national. You pick which events to attend when the season starts.
+// ===========================================================================
+const LEVEL_LABEL = { local: 'Local', regional: 'Regional', national: 'National' };
+const RACE_WEEKS = [3, 5, 7, 9, 11];
+
+// Candidate events for each race weekend. Every weekend has a local option;
+// some offer a bigger away race instead (you can only be one place at once).
+export function EVENT_POOL() {
+  const mk = (week, i, level, name) => {
+    const s = SERIES[level];
+    return {
+      id: `w${week}_${level}`, week, round: i + 1, level, name,
+      laps: 5 + Math.floor(i / 2), motos: 2,
+      field: Math.min(0.82, s.baseField + i * 0.02),
+      riders: s.fieldSize, entryMult: s.entryMult,
+      entry: Math.round(35 * s.entryMult),
+      travel: level === 'local' ? 'Close to home' : level === 'regional' ? 'A few hours away' : 'A long haul',
+    };
+  };
+  return {
+    3: [mk(3, 0, 'local', 'Rocky Ridge MX')],
+    5: [mk(5, 1, 'local', 'Pine Hollow'), mk(5, 1, 'regional', 'Southwick Regional')],
+    7: [mk(7, 2, 'local', 'Sandy Creek'), mk(7, 2, 'national', 'Ponca City National')],
+    9: [mk(9, 3, 'local', 'Miller Farm'), mk(9, 3, 'regional', 'High Point Regional')],
+    11: [mk(11, 4, 'local', 'County Line Finale'), mk(11, 4, 'regional', 'Loretta Qualifier'), mk(11, 4, 'national', 'Grand National Finale')],
+  };
+}
+
+// Default program: run all the local rounds.
+export function defaultProgram(pool = EVENT_POOL()) {
+  const prog = {};
+  for (const w of RACE_WEEKS) prog[w] = pool[w][0].id; // first option = local
+  return prog;
+}
+
+// Build the 12-week calendar from the chosen program (issue #22).
+export function buildScheduleFromProgram(pool = EVENT_POOL(), program = null) {
+  const prog = program ?? defaultProgram(pool);
+  const cal = [];
+  const noteFor = {
+    1: ['Preseason', 'A new season. Get the bike and the body ready.'],
+    2: ['Build Week', 'No race this weekend. Time to prepare.'],
+    4: ['Midweek', 'Recover, wrench, live a little.'],
+    6: ['Midweek', 'The season is finding its rhythm.'],
+    8: ['Midweek', 'Halfway through the program.'],
+    10: ['Finale Prep', 'One big weekend left on your schedule.'],
+    12: ['Season Finale', 'The season is over. Time to look back.'],
+  };
+  for (let week = 1; week <= 12; week++) {
+    if (RACE_WEEKS.includes(week)) {
+      const ev = pool[week].find((e) => e.id === prog[week]);
+      if (ev) {
+        cal.push({
+          week, title: `${LEVEL_LABEL[ev.level]} · ${ev.name}`,
+          race: { name: ev.name, kind: ev.level, series: ev.level, round: ev.round,
+            laps: ev.laps, motos: ev.motos, field: ev.field, riders: ev.riders, entryMult: ev.entryMult },
+        });
+      } else {
+        cal.push({ week, title: 'Open Weekend', note: 'No race booked — a free weekend to practice, wrench, or rest.' });
+      }
+    } else {
+      const [title, note] = noteFor[week] ?? ['Midweek', 'A quieter week.'];
+      const entry = { week, title, note };
+      if (week === 4 || week === 8) { entry.camp = true; entry.title = title + ' · 🏕️ Camp'; }
+      cal.push(entry);
+    }
+  }
+  return cal;
+}

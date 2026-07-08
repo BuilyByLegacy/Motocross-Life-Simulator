@@ -8,7 +8,7 @@
 import { RNG } from './core/rng.js';
 import { EventBus } from './core/eventBus.js';
 import { createInitialState } from './core/state.js';
-import { ACTIVITIES, ACTIVITIES_PARENT, CLASS_FOR_AGE, BIKE_FOR_CLASS, ELIGIBLE_CLASSES, buildSchedule, SERIES, CAMPS, BACKGROUNDS } from './data/content.js';
+import { ACTIVITIES, ACTIVITIES_PARENT, CLASS_FOR_AGE, BIKE_FOR_CLASS, ELIGIBLE_CLASSES, SERIES, CAMPS, BACKGROUNDS, EVENT_POOL, defaultProgram, buildScheduleFromProgram } from './data/content.js';
 import { MemoryEngine } from './engines/memoryEngine.js';
 import { RelationshipEngine } from './engines/relationshipEngine.js';
 import { WorldEngine } from './engines/worldEngine.js';
@@ -48,12 +48,10 @@ export const SIM_DEPTHS = {
 };
 
 export class Game {
-  constructor({ riderName = 'Riley', seed = Date.now(), depth = 'detailed', birthdate = '2022-05-15', campaign = 'rider', schoolMode = 'school', series = 'local', avatar = '🧒', background = null } = {}) {
+  constructor({ riderName = 'Riley', seed = Date.now(), depth = 'detailed', birthdate = '2022-05-15', campaign = 'rider', schoolMode = 'school', avatar = '🧒', background = null } = {}) {
     this.state = createInitialState(riderName, seed, birthdate, campaign);
     this.state.simDepth = depth;
     this.state.campaign = campaign;
-    this.state.series = series;
-    this.state.calendar = buildSchedule(series);
     this.state.rider.avatar = avatar;
     // A starting background sets schooling + money + family footing (issue #16).
     const bg = BACKGROUNDS.find((b) => b.id === background);
@@ -176,7 +174,39 @@ export class Game {
   meta(week = this.week) {
     return (this.state.calendar ?? []).find((c) => c.week === week);
   }
-  get series() { return SERIES[this.state.series] ?? SERIES.local; }
+
+  // ---- race program (issue #22) -------------------------------------------
+  eventPool() {
+    if (!this._eventPool) this._eventPool = EVENT_POOL();
+    return this._eventPool;
+  }
+  rebuildCalendar() {
+    this.state.calendar = buildScheduleFromProgram(this.eventPool(), this.state.program);
+  }
+  setProgram(program) {
+    this.state.program = { ...program };
+    this.state.programSet = true;
+    this.rebuildCalendar();
+  }
+  // Total booked entry cost for the current program (issue #22).
+  programCost() {
+    const pool = this.eventPool();
+    return Object.entries(this.state.program).reduce((sum, [w, id]) => {
+      const ev = (pool[w] ?? []).find((e) => e.id === id);
+      return sum + (ev ? ev.entry : 0);
+    }, 0);
+  }
+  // Derived "level" for the topbar/journal: the biggest event on your schedule.
+  get series() {
+    const pool = this.eventPool();
+    let level = 'local';
+    for (const [w, id] of Object.entries(this.state.program)) {
+      const ev = (pool[w] ?? []).find((e) => e.id === id);
+      if (ev && ev.level === 'national') level = 'national';
+      else if (ev && ev.level === 'regional' && level !== 'national') level = 'regional';
+    }
+    return SERIES[level] ?? SERIES.local;
+  }
   isRaceWeek(week = this.week) {
     return !!this.meta(week)?.race;
   }
@@ -739,7 +769,11 @@ export class Game {
     this.state.week = 1;
     this.state._preparedWeek = 0;
     this.state.season = { results: [], points: 0, bestFinish: null, classPoints: {}, riderPoints: {} };
-    this.state.calendar = buildSchedule(this.state.series);
+    // New season: reset to the default (all-local) program; the player rebuilds
+    // their schedule at season start (issue #22).
+    this.state.program = defaultProgram(this.eventPool());
+    this.state.programSet = false;
+    this.rebuildCalendar();
     this.state.schedule = [];
     this.state.pendingScenario = null;
     this.state.chainQueue = [];

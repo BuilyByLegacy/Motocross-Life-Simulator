@@ -148,17 +148,13 @@ export class App {
     } else {
       card = el('div', { class: 'card' },
         el('div', { class: 'eyebrow' }, 'Step 4 of 4'),
-        el('h2', {}, 'The season'),
-        el('div', { class: 'field' }, el('label', {}, 'Series — how big do you race?'),
-          el('div', { class: 'depth-grid' }, ...Object.values(SERIES).map((s) =>
-            el('div', { class: 'depth-card' + (o.series === s.key ? ' selected' : ''), onclick: () => set('series', s.key) },
-              el('b', {}, `${s.icon} ${s.label}`), el('div', { class: 'small muted' }, `${s.fieldSize} riders/gate · ${s.blurb}`)))),
-        ),
+        el('h2', {}, 'How do you want to play?'),
         el('div', { class: 'field' }, el('label', {}, 'Simulation depth'),
           el('div', { class: 'depth-grid' }, ...Object.values(SIM_DEPTHS).map((d) =>
             el('div', { class: 'depth-card' + (o.depth === d.key ? ' selected' : ''), onclick: () => set('depth', d.key) },
               el('b', {}, d.label), el('div', { class: 'small muted' }, d.blurb)))),
         ),
+        el('p', { class: 'small faint' }, "You'll build your race program — which events to attend — when the season starts."),
         el('div', { class: 'toolbar' },
           el('button', { class: 'btn ghost', onclick: () => go('background') }, '‹ Back'),
           el('button', { class: 'btn primary', onclick: () => this.startGame({ ...o }) }, `Begin — ${thisYear} Season`)),
@@ -174,7 +170,7 @@ export class App {
   startGame(o) {
     this.clearSave(); // a fresh life replaces any prior save
     this.game = new Game({ riderName: o.name, depth: o.depth, birthdate: o.birthdate, campaign: o.campaign,
-      series: o.series, avatar: o.avatar, background: o.background, seed: Date.now() });
+      avatar: o.avatar, background: o.background, seed: Date.now() });
     this.onboard = null;
     this.tab = 'week';
     this.startWeek();
@@ -312,6 +308,11 @@ export class App {
     g.prepareWeek();
     this.saveGame(); // autosave at each week boundary
     this.digest = [];
+    // Build your race program at season start (issue #22).
+    if (g.week === 1 && !g.state.programSet && g.state.simDepth !== 'fast') {
+      this._programSel = { ...g.state.program };
+      return this.showWeek(() => this.viewProgramBuilder(false));
+    }
     this.handlePlanning();
   }
 
@@ -503,6 +504,63 @@ export class App {
     );
   }
 
+  // ---- Race program builder (issue #22) -----------------------------------
+  viewProgramBuilder(edit) {
+    const g = this.game;
+    const pool = g.eventPool();
+    const weeks = Object.keys(pool).map(Number).sort((a, b) => a - b);
+    const sel = this._programSel;
+    const levelChip = (lvl) => el('span', { class: 'sp-tier ' + lvl }, lvl);
+    const cost = weeks.reduce((s, w) => { const ev = pool[w].find((e) => e.id === sel[w]); return s + (ev ? ev.entry : 0); }, 0);
+
+    const weekBlock = (w) => {
+      const opts = pool[w];
+      const locked = edit && w < g.week; // can't change a weekend that's already happened
+      const rows = opts.map((ev) =>
+        el('button', {
+          class: 'prog-opt' + (sel[w] === ev.id ? ' on' : '') + (locked ? ' locked' : ''),
+          onclick: locked ? undefined : () => { sel[w] = ev.id; this.render(); },
+        },
+          el('div', {}, el('b', {}, ev.name), ' ', levelChip(ev.level)),
+          el('div', { class: 'faint small' }, `${ev.riders} riders · ${ev.travel} · entry $${ev.entry}`),
+        )
+      );
+      rows.push(el('button', {
+        class: 'prog-opt' + (!sel[w] ? ' on' : '') + (locked ? ' locked' : ''),
+        onclick: locked ? undefined : () => { delete sel[w]; this.render(); },
+      }, el('b', {}, '🚫 Skip this weekend'), el('div', { class: 'faint small' }, 'A free weekend to practice or rest.')));
+      return el('div', { class: 'prog-week' },
+        el('div', { class: 'prog-week-head' }, `Weekend · Week ${w}`, locked ? el('span', { class: 'faint small' }, ' (done)') : null),
+        ...rows,
+      );
+    };
+
+    return el('div', {},
+      el('div', { class: 'card' },
+        el('div', { class: 'eyebrow' }, '🗓️ ' + g.seasonYear + ' Race Program'),
+        el('h2', {}, 'Build your schedule'),
+        el('p', { class: 'small muted' }, 'Run the local rounds, or travel to the big regional and national events. Pick which events to attend — you can only be one place each weekend, and entries add up.'),
+        el('div', { class: 'prog-summary' },
+          el('span', {}, `Booked entries: `, el('b', {}, '$' + cost)),
+          el('span', { class: 'faint' }, ` · You have $${g.family.money.toLocaleString()}`),
+        ),
+        ...weeks.map(weekBlock),
+        el('div', { class: 'toolbar', style: 'margin-top:12px' },
+          edit ? el('button', { class: 'btn ghost', onclick: () => { this._seasonView = true; this.render(); } }, 'Cancel') : null,
+          el('button', { class: 'btn primary', onclick: () => this.confirmProgram(edit) },
+            edit ? 'Save program' : 'Lock in the program →'),
+        ),
+      ),
+    );
+  }
+
+  confirmProgram(edit) {
+    this.game.setProgram(this._programSel);
+    this.saveGame();
+    if (edit) { this._seasonView = true; this.render(); }
+    else this.handlePlanning();
+  }
+
   // ---- Season / monthly calendar (issue #5) -------------------------------
   viewSeasonBoard() {
     const g = this.game;
@@ -512,7 +570,10 @@ export class App {
         el('div', { class: 'eyebrow' }, `${g.series.icon} ${g.series.label} · ${g.seasonYear}`),
         el('div', { style: 'display:flex;justify-content:space-between;align-items:center' },
           el('h2', { style: 'margin:0' }, 'Season Calendar'),
-          el('button', { class: 'btn ghost small', onclick: () => { this._seasonView = false; this.render(); } }, '📅 This week'),
+          el('div', { class: 'toolbar' },
+            el('button', { class: 'btn ghost small', onclick: () => { this._programSel = { ...g.state.program }; this._seasonView = false; this.showWeek(() => this.viewProgramBuilder(true)); } }, '✏️ Program'),
+            el('button', { class: 'btn ghost small', onclick: () => { this._seasonView = false; this.render(); } }, '📅 This week'),
+          ),
         ),
         el('p', { class: 'small faint' }, 'Your year at a glance. Races are fixed; camps are yours to attend or skip.'),
         el('div', { class: 'season-grid' },
