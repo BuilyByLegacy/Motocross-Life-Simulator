@@ -1123,6 +1123,7 @@ export class App {
           )
         ),
       ),
+      this.competitionCard(),
       el('div', { class: 'card' },
         el('h3', {}, '🎯 Training'),
         el('p', { class: 'small muted' }, g.isParent
@@ -1135,6 +1136,32 @@ export class App {
           el('p', {}, '💪 ', el('b', {}, 'Fitness'), ' — the difference on lap five.'),
         ),
       ),
+    );
+  }
+
+  // Competition Engine surface (issues #63/#66/#67): form, class progression,
+  // and season standings. Null before the first race so the tab stays clean.
+  competitionCard() {
+    const g = this.game;
+    if (!g.state.season.results.length) return null;
+    const m = g.momentum.state();
+    const champ = g.championshipStanding();
+    const prog = g.progression.summary(g.rider.klass);
+    const st = g.standings.table_({ klass: g.rider.klass }).find((r) => r.riderId === 'me');
+    const formLabel = m.streak >= 3 ? '🔥 On a heater'
+      : m.streak <= -3 ? '🥶 In a slump'
+      : m.momentum > 20 ? '📈 Building'
+      : m.momentum < -20 ? '📉 Fading' : '➖ Steady';
+    return el('div', { class: 'card' },
+      el('div', { class: 'eyebrow' }, '🏆 Competition'),
+      el('h3', {}, `${g.rider.klass} · ${champ.pos ? ordinal(champ.pos) + ' in points' : '—'}`),
+      el('div', { class: 'comp-form' },
+        el('div', { class: 'skill-top' }, el('b', {}, 'Momentum'), el('span', { class: 'mono' }, formLabel)),
+        this.meter(Math.round((m.momentum + 100) / 2)),
+      ),
+      prog.races ? el('div', { class: 'faint small', style: 'margin-top:8px' },
+        `${g.rider.klass}: ${prog.races} races · best ${prog.best ? ordinal(prog.best) : '—'} · avg ${prog.avg ?? '—'} · adaptation ${prog.adaptation}%`) : null,
+      st ? el('div', { class: 'faint small' }, `Season record: ${st.rounds} rounds · ${st.points} pts · ${st.wins}W ${st.podiums}P${st.dnfs ? ` · ${st.dnfs} DNF` : ''}`) : null,
     );
   }
 

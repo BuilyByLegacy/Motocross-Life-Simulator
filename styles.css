@@ -253,6 +253,10 @@ button { font-family: inherit; }
 .fc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; margin-top: 8px; }
 .fc-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.82rem; padding: 2px 0; border-bottom: 1px dashed var(--line); }
 
+/* ---- Competition card ---- */
+.comp-form { margin-top: 8px; }
+.comp-form .skill-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+
 /* ---- Road to Loretta's dream panel ---- */
 .lorettas-panel { background: linear-gradient(180deg, #241a10, var(--panel)); border: 1px solid var(--amber); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
 .lorettas-panel.qualified { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }

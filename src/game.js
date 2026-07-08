@@ -18,6 +18,8 @@ import { MarketplaceEngine } from './engines/marketplaceEngine.js';
 import { SponsorEngine } from './engines/sponsorEngine.js';
 import { SeasonPlanner } from './systems/seasonPlanner.js';
 import { LorettasPath, classifyEvent } from './systems/lorettasPath.js';
+import { resolveResult, Standings } from './systems/raceResults.js';
+import { ClassProgression, MomentumTracker, RivalTracker } from './systems/competition.js';
 import { RaceSession } from './engines/raceEngine.js';
 
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
@@ -75,6 +77,12 @@ export class Game {
     // Road to Loretta's progression (issues #25/#58–#62). Live instance,
     // snapshotted into state.lorettaPath at save time.
     this.lorettas = LorettasPath.fromJSON(this.state.lorettaPath);
+    // Competition Engine (issues #63–#67): per-class progression, standings,
+    // momentum, and recurring rivals — hydrated from state, snapshotted at save.
+    this.progression = ClassProgression.fromJSON(this.state.progression);
+    this.standings = Standings.fromJSON(this.state.standings);
+    this.momentum = MomentumTracker.fromJSON(this.state.momentum ?? { confidence: this.state.rider.confidence });
+    this.rivals = RivalTracker.fromJSON(this.state.rivals);
 
     this.currentRace = null;
     this._weekLog = null;
@@ -152,6 +160,10 @@ export class Game {
   // the story "used" sets, the simulated rival field), so capture those too.
   toSave() {
     this.state.lorettaPath = this.lorettas.toJSON(); // snapshot the live path
+    this.state.progression = this.progression.toJSON();
+    this.state.standings = this.standings.toJSON();
+    this.state.momentum = this.momentum.toJSON();
+    this.state.rivals = this.rivals.toJSON();
     return {
       v: 2,
       seed: this.rng.seed,
@@ -174,6 +186,10 @@ export class Game {
     g.world._newsIdx = save.world.newsIdx;
     g.relationships._cache = new Map(); // re-wrap the loaded relationship records
     g.lorettas = LorettasPath.fromJSON(g.state.lorettaPath); // re-wrap the path
+    g.progression = ClassProgression.fromJSON(g.state.progression);
+    g.standings = Standings.fromJSON(g.state.standings);
+    g.momentum = MomentumTracker.fromJSON(g.state.momentum);
+    g.rivals = RivalTracker.fromJSON(g.state.rivals);
     return g;
   }
 
@@ -685,6 +701,10 @@ export class Game {
       this.garage.trophies.push({ name: `${ordinal(overall)} Overall — ${result.race.name}`, week: this.week });
     }
 
+    // Competition Engine (issues #63–#67): progression, standings, momentum,
+    // and rival history all consume the race result.
+    this.recordCompetition(result);
+
     // Road to Loretta's: if this was a qualifying event, advance the path and
     // turn any milestones into memories (issues #25/#31/#58–#62).
     this.recordLorettaResult(result);
@@ -723,6 +743,40 @@ export class Game {
     this.log(`🏁 ${result.race.name}: ${result.dnf ? 'DNF' : ordinal(overall) + ' overall'} (+${result.points} pts).`);
     this.currentRace = null;
     return result;
+  }
+
+  // Feed a race result into the Competition Engine: per-class progression,
+  // season standings, momentum/streak, and rival history (issues #63–#67).
+  recordCompetition(result) {
+    const overall = result.dnf ? null : result.overall;
+    // #63 class progression
+    this.progression.record(result.klass, overall, { dnf: result.dnf });
+    // #64/#67 a serializable result record rolled into standings
+    this.standings.add(resolveResult({
+      eventId: result.race.name, riderId: 'me', klass: result.klass, bikeId: result.bikeId,
+      calendarWeek: this.week, motos: result.motos ?? [], fieldSize: result.fieldSize ?? 30,
+      overall: result.overall ?? null, status: result.dnf ? 'dnf' : 'finished',
+      table: result.race.kind === 'national' ? 'pro' : 'amateur',
+    }));
+    // #66 momentum & streak, with a reason code. Mirror the game's confidence
+    // (which the balanced race logic already moved) so the two read together.
+    this.momentum.confidence = this.rider.confidence;
+    const reason = result.dnf ? 'dnf'
+      : result.overall === 1 ? 'win'
+      : result.overall <= 3 ? 'podium'
+      : result.overall <= (result.fieldSize ?? 30) / 2 ? 'top_half' : 'back_half';
+    this.momentum.apply(reason, { source: result.race.name });
+    const notable = this.momentum.notableEvent();
+    if (notable?.kind === 'hot_streak') this.addNews(`${this.rider.name} is on a heater — ${this.momentum.streak} strong weekends in a row.`, 'world');
+    else if (notable?.kind === 'slump') this.addNews(`${this.rider.name} is fighting a slump — ${-this.momentum.streak} rough weekends running.`, 'world');
+    // #65 rival history: the head-to-head against the recurring rival.
+    if (result.rivalOverall != null) {
+      const beat = result.overall < result.rivalOverall;
+      this.rivals.encounter({ id: 'rival_ethan', name: this.rel('rival_ethan').name }, { beat });
+      const hook = this.rivals.memoryHook({ id: 'rival_ethan', name: this.rel('rival_ethan').name }, { beat });
+      if (hook) this.memory.record({ type: 'relationship', title: hook.title, summary: hook.summary, people: ['rival_ethan'], tags: hook.tags, importance: hook.importance, force: true });
+    }
+    return { momentum: this.momentum.state() };
   }
 
   // Advance the Road to Loretta's from a race result and record milestones as
