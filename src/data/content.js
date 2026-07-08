@@ -1780,3 +1780,62 @@ export const CAMPS = {
     },
   },
 };
+
+// ===========================================================================
+// STARTING BACKGROUNDS (issue #16) — "how you want to start". Applied after the
+// game is created; sets money, support, schooling, bike, and family footing.
+// ===========================================================================
+export const RIDER_AVATARS = ['🧒', '👦', '👧', '🧑', '🤠', '😎', '🏍️', '🔥', '⚡', '🦊'];
+
+export const BACKGROUNDS = [
+  {
+    id: 'working_class', label: 'Working-class kid', icon: '🧢', schoolMode: 'school',
+    blurb: 'Not much money, a tired hand-me-down bike — but heart to spare.',
+    apply(g) {
+      g.family.money = 450;
+      g.bike.condition = 55; g.bike.reliability = Math.max(20, g.bike.reliability - 6);
+      g.family.stress = 30; g.confidence(3);
+      g.setFlag('background_grit', true);
+    },
+  },
+  {
+    id: 'rich', label: 'Rich kid', icon: '💰', schoolMode: 'school',
+    blurb: 'Money is no object. The best bike, but everyone expects you to win.',
+    apply(g) {
+      g.family.money = 4500;
+      g.setSupportLevel(1);
+      g.bike.condition = 90; g.bike.performance += 10; g.bike.reliability = Math.min(100, g.bike.reliability + 8);
+      g.rel('dad').change('pride', 6);
+      g.setFlag('background_pressure', true);
+    },
+  },
+  {
+    id: 'homeschool', label: 'Homeschooled', icon: '🏠', schoolMode: 'homeschool',
+    blurb: 'A flexible schedule means more weekday ride time — if you keep up the schoolwork.',
+    apply(g) {
+      g.family.money = 1300;
+      g.rel('mom').change('trust', 6);
+    },
+  },
+  {
+    id: 'blue_collar', label: 'Blue-collar family', icon: '🔧', schoolMode: 'school',
+    blurb: 'Dad wrenches for a living. The bike is always tight — the budget, less so.',
+    apply(g) {
+      g.family.money = 900;
+      g.rel('dad').change('trust', 10); g.rel('dad').change('support', 10);
+      g.bike.reliability = Math.min(100, g.bike.reliability + 10); g.bike.condition = Math.min(100, g.bike.condition + 8);
+      g.setFlag('background_mechanic', true);
+    },
+  },
+  {
+    id: 'clueless', label: "Parents new to the sport", icon: '🤷', schoolMode: 'school',
+    blurb: "Mom and Dad don't know a clutch from a brake. You're figuring it out yourself.",
+    apply(g) {
+      g.family.money = 1000;
+      g.rel('dad').change('support', -8); g.rel('coach_mike').change('belief', -4);
+      g.setFlag('parents_new', true);
+      g.setFlag('earned_own_money', true);
+      g.skill('raceIQ', 2); // self-taught grit
+    },
+  },
+];

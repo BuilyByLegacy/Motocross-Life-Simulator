@@ -8,7 +8,7 @@
 import { RNG } from './core/rng.js';
 import { EventBus } from './core/eventBus.js';
 import { createInitialState } from './core/state.js';
-import { ACTIVITIES, ACTIVITIES_PARENT, CLASS_FOR_AGE, BIKE_FOR_CLASS, ELIGIBLE_CLASSES, buildSchedule, SERIES, CAMPS } from './data/content.js';
+import { ACTIVITIES, ACTIVITIES_PARENT, CLASS_FOR_AGE, BIKE_FOR_CLASS, ELIGIBLE_CLASSES, buildSchedule, SERIES, CAMPS, BACKGROUNDS } from './data/content.js';
 import { MemoryEngine } from './engines/memoryEngine.js';
 import { RelationshipEngine } from './engines/relationshipEngine.js';
 import { WorldEngine } from './engines/worldEngine.js';
@@ -48,13 +48,17 @@ export const SIM_DEPTHS = {
 };
 
 export class Game {
-  constructor({ riderName = 'Riley', seed = Date.now(), depth = 'detailed', birthdate = '2022-05-15', campaign = 'rider', schoolMode = 'school', series = 'local' } = {}) {
+  constructor({ riderName = 'Riley', seed = Date.now(), depth = 'detailed', birthdate = '2022-05-15', campaign = 'rider', schoolMode = 'school', series = 'local', avatar = '🧒', background = null } = {}) {
     this.state = createInitialState(riderName, seed, birthdate, campaign);
     this.state.simDepth = depth;
     this.state.campaign = campaign;
-    this.state.schoolMode = schoolMode;
     this.state.series = series;
     this.state.calendar = buildSchedule(series);
+    this.state.rider.avatar = avatar;
+    // A starting background sets schooling + money + family footing (issue #16).
+    const bg = BACKGROUNDS.find((b) => b.id === background);
+    this.state.schoolMode = bg ? bg.schoolMode : schoolMode;
+    this.state.background = background;
     this.rng = new RNG(seed);
     this.bus = new EventBus();
 
@@ -71,6 +75,9 @@ export class Game {
 
     this.currentRace = null;
     this._weekLog = null;
+
+    // Apply the starting background now that helpers/engines exist (issue #16).
+    if (bg) bg.apply(this);
 
     // Seed an initial marketplace.
     this.market.refresh(true);

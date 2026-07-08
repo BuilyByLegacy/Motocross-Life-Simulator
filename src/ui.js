@@ -6,7 +6,7 @@
 
 import { Game, SIM_DEPTHS, ordinal } from './game.js';
 import { RACE_STRATEGIES, estimateForm } from './engines/raceEngine.js';
-import { SERIES, CAMPS as CAMPS_REF, PART_INFO as PART_INFO_REF } from './data/content.js';
+import { SERIES, CAMPS as CAMPS_REF, PART_INFO as PART_INFO_REF, RIDER_AVATARS as RIDER_AVATARS_REF, BACKGROUNDS as BACKGROUNDS_REF } from './data/content.js';
 
 // tiny hyperscript helper
 function el(tag, props = {}, ...kids) {
@@ -74,140 +74,108 @@ export class App {
 
   // ---- Title / setup -------------------------------------------------------
   renderTitle() {
-    let name = 'Riley';
-    let depth = 'detailed';
-    let campaign = 'rider';
-    let schoolMode = 'school';
-    let series = 'local';
     const thisYear = new Date().getFullYear();
-    let birthdate = `${thisYear - 4}-05-15`; // default: rider turns 4 this year
+    if (!this.onboard) {
+      this.onboard = { step: 'campaign', campaign: 'rider', name: 'Riley', avatar: '🧒',
+        birthdate: `${thisYear - 4}-05-15`, background: 'working_class', series: 'local', depth: 'detailed' };
+    }
+    const o = this.onboard;
+    const set = (k, v) => { o[k] = v; this.renderTitle(); };
+    const go = (step) => { o.step = step; this.renderTitle(); };
 
-    const depthCards = Object.values(SIM_DEPTHS).map((d) =>
-      el('div', {
-        class: 'depth-card' + (d.key === depth ? ' selected' : ''),
-        'data-depth': d.key,
-        onclick: (e) => {
-          depth = d.key;
-          this.root.querySelectorAll('.depth-card').forEach((c) => c.classList.toggle('selected', c.dataset.depth === depth));
-        },
-      },
-        el('b', {}, d.label),
-        el('div', { class: 'small muted' }, d.blurb),
-      )
+    const header = el('div', { class: 'title-wrap' },
+      el('div', { class: 'logo-mark' }, '🏍️'),
+      el('h1', {}, 'Legacy: Motocross'),
+      el('div', { class: 'tagline' }, 'Create a life worth remembering.'),
     );
 
-    const nameInput = el('input', { value: name, maxlength: '14', oninput: (e) => (name = e.target.value.trim() || 'Riley') });
+    let card;
+    if (o.step === 'campaign') {
+      const save = this.loadSave();
+      card = el('div', {},
+        save ? el('div', { class: 'card' },
+          el('div', { class: 'eyebrow' }, 'Saved career'),
+          el('h2', {}, `${save.state.rider.name}, age ${save.state.rider.age}`),
+          el('button', { class: 'btn primary wide', onclick: () => this.continueGame() }, 'Continue Career →'),
+        ) : null,
+        save ? el('p', { class: 'faint small center' }, '— or start a new life —') : null,
+        el('div', { class: 'card' },
+          el('div', { class: 'eyebrow' }, 'Step 1 of 4'),
+          el('h2', {}, 'Who are you?'),
+          ...[['rider', '🏍️ Rider', 'You are the kid. Plan your weeks, prep the bike, ride every lap.'],
+              ['parent', '👨‍👩‍👧 Parent', 'You are the parent. Money, work, family, safety — you provide, they ride.']].map(([k, lab, blurb]) =>
+            el('button', { class: 'choice' + (o.campaign === k ? ' sel' : ''), onclick: () => { o.campaign = k; go('identity'); } },
+              el('b', {}, lab), el('div', { class: 'tip' }, blurb))),
+        ),
+      );
+    } else if (o.step === 'identity') {
+      const nameInput = el('input', { value: o.name, maxlength: '14', oninput: (e) => (o.name = e.target.value.trim() || 'Riley') });
+      const hint = el('div', { class: 'faint small', style: 'margin-top:6px' });
+      const ageHint = () => {
+        const by = parseInt(String(o.birthdate).slice(0, 4), 10);
+        const age = Math.max(3, thisYear - by);
+        const kl = age <= 6 ? '50cc' : age <= 11 ? '65cc' : age <= 13 ? '85cc' : 'Supermini';
+        hint.textContent = `Starts ${thisYear} at age ${age} on a ${kl}.`;
+      };
+      const bday = el('input', { type: 'date', value: o.birthdate, min: `${thisYear - 8}-01-01`, max: `${thisYear - 3}-12-31`,
+        oninput: (e) => { o.birthdate = e.target.value || o.birthdate; ageHint(); } });
+      ageHint();
+      card = el('div', { class: 'card' },
+        el('div', { class: 'eyebrow' }, 'Step 2 of 4'),
+        el('h2', {}, o.campaign === 'parent' ? 'Your kid' : 'Your rider'),
+        el('div', { class: 'field' }, el('label', {}, 'Pick an avatar'),
+          el('div', { class: 'avatar-grid' }, ...RIDER_AVATARS_REF.map((a) =>
+            el('button', { class: 'av' + (o.avatar === a ? ' sel' : ''), onclick: () => set('avatar', a) }, a))),
+        ),
+        el('div', { class: 'field' }, el('label', {}, o.campaign === 'parent' ? "Your kid's name" : "Your rider's name"), nameInput),
+        el('div', { class: 'field' }, el('label', {}, 'Birthday'), bday, hint),
+        el('div', { class: 'toolbar' },
+          el('button', { class: 'btn ghost', onclick: () => go('campaign') }, '‹ Back'),
+          el('button', { class: 'btn primary', onclick: () => go('background') }, 'Next ›')),
+      );
+    } else if (o.step === 'background') {
+      card = el('div', { class: 'card' },
+        el('div', { class: 'eyebrow' }, 'Step 3 of 4'),
+        el('h2', {}, 'How do you start?'),
+        el('p', { class: 'small faint' }, 'Your background shapes money, schooling, and family.'),
+        ...BACKGROUNDS_REF.map((bgd) =>
+          el('button', { class: 'choice' + (o.background === bgd.id ? ' sel' : ''), onclick: () => set('background', bgd.id) },
+            el('b', {}, `${bgd.icon} ${bgd.label}`), el('div', { class: 'tip' }, bgd.blurb))),
+        el('div', { class: 'toolbar' },
+          el('button', { class: 'btn ghost', onclick: () => go('identity') }, '‹ Back'),
+          el('button', { class: 'btn primary', onclick: () => go('options') }, 'Next ›')),
+      );
+    } else {
+      card = el('div', { class: 'card' },
+        el('div', { class: 'eyebrow' }, 'Step 4 of 4'),
+        el('h2', {}, 'The season'),
+        el('div', { class: 'field' }, el('label', {}, 'Series — how big do you race?'),
+          el('div', { class: 'depth-grid' }, ...Object.values(SERIES).map((s) =>
+            el('div', { class: 'depth-card' + (o.series === s.key ? ' selected' : ''), onclick: () => set('series', s.key) },
+              el('b', {}, `${s.icon} ${s.label}`), el('div', { class: 'small muted' }, `${s.fieldSize} riders/gate · ${s.blurb}`)))),
+        ),
+        el('div', { class: 'field' }, el('label', {}, 'Simulation depth'),
+          el('div', { class: 'depth-grid' }, ...Object.values(SIM_DEPTHS).map((d) =>
+            el('div', { class: 'depth-card' + (o.depth === d.key ? ' selected' : ''), onclick: () => set('depth', d.key) },
+              el('b', {}, d.label), el('div', { class: 'small muted' }, d.blurb)))),
+        ),
+        el('div', { class: 'toolbar' },
+          el('button', { class: 'btn ghost', onclick: () => go('background') }, '‹ Back'),
+          el('button', { class: 'btn primary', onclick: () => this.startGame({ ...o }) }, `Begin — ${thisYear} Season`)),
+      );
+    }
 
-    const campaignDefs = [
-      { key: 'rider', label: '🏍️ Rider', blurb: 'You are the kid. Plan your weeks, prep the bike, and ride every lap.' },
-      { key: 'parent', label: '👨‍👩‍👧 Parent', blurb: 'You are the parent. Work, money, family, safety, and support — you provide, they ride.' },
-    ];
-    const campaignCards = campaignDefs.map((c) =>
-      el('div', {
-        class: 'depth-card' + (c.key === campaign ? ' selected' : ''),
-        'data-campaign': c.key,
-        onclick: () => {
-          campaign = c.key;
-          this.root.querySelectorAll('[data-campaign]').forEach((el2) => el2.classList.toggle('selected', el2.dataset.campaign === campaign));
-          nameLabel.textContent = campaign === 'parent' ? "Your kid's name" : "Your rider's name";
-        },
-      },
-        el('b', {}, c.label),
-        el('div', { class: 'small muted' }, c.blurb),
-      )
-    );
-    const nameLabel = el('label', {}, "Your rider's name");
-
-    const ageHint = el('span', { class: 'faint small' });
-    const updateAgeHint = () => {
-      const by = parseInt(String(birthdate).slice(0, 4), 10);
-      const age = Math.max(3, thisYear - by);
-      const klass = age <= 6 ? '50cc' : age <= 11 ? '65cc' : age <= 13 ? '85cc' : 'Supermini';
-      ageHint.textContent = `Starts ${thisYear} at age ${age} on a ${klass}. The career grows year by year.`;
-    };
-    const birthdayInput = el('input', {
-      type: 'date',
-      value: birthdate,
-      min: `${thisYear - 8}-01-01`,
-      max: `${thisYear - 3}-12-31`,
-      oninput: (e) => { birthdate = e.target.value || birthdate; updateAgeHint(); },
-    });
-    updateAgeHint();
-
-    const save = this.loadSave();
-    const continueCard = save ? el('div', { class: 'card' },
-      el('div', { class: 'eyebrow' }, 'Saved career'),
-      el('h2', {}, save.state.rider.name + ', age ' + save.state.rider.age),
-      el('p', { class: 'small muted' },
-        `${(save.state.startYear ?? new Date().getFullYear()) + (save.state.seasonNumber ?? 1) - 1} season · ` +
-        `Week ${Math.min(save.state.week, 12)}/12 · ${save.state.season.points} pts · ` +
-        `${(save.state.campaign === 'parent') ? 'Parent' : 'Rider'} campaign`),
-      el('button', { class: 'btn primary wide', onclick: () => this.continueGame() }, 'Continue Career →'),
-    ) : null;
-
-    const view = el('div', {},
-      el('div', { class: 'title-wrap' },
-        el('div', { class: 'logo-mark' }, '🏍️'),
-        el('h1', {}, 'Legacy: Motocross'),
-        el('div', { class: 'tagline' }, 'Create a life worth remembering.'),
-        el('p', { class: 'muted small', style: 'max-width:520px;margin:12px auto 0' },
-          'A sports life-simulation prototype. Live one 12-week youth season — plan your weeks, prep the bike, race lap-by-lap, and build memories that outlast the results.'),
-      ),
-      continueCard,
-      save ? el('p', { class: 'faint small center' }, '— or start a new life —') : null,
-      el('div', { class: 'card' },
-        el('div', { class: 'field' },
-          el('label', {}, 'Play as…'),
-          el('div', { class: 'depth-grid' }, ...campaignCards),
-        ),
-        el('div', { class: 'field' },
-          nameLabel,
-          nameInput,
-        ),
-        el('div', { class: 'field' },
-          el('label', {}, "Rider's birthday"),
-          birthdayInput,
-          el('div', { style: 'margin-top:6px' }, ageHint),
-        ),
-        el('div', { class: 'field' },
-          el('label', {}, 'Schooling'),
-          el('div', { class: 'depth-grid' },
-            ...[['school', '🏫 Public school', 'Ride on weekends; lighter training after school.'],
-                ['homeschool', '🏠 Homeschool', 'More weekday ride time — but keep the schoolwork up.']].map(([k, lab, blurb]) =>
-              el('div', {
-                class: 'depth-card' + (k === schoolMode ? ' selected' : ''),
-                'data-school': k,
-                onclick: () => { schoolMode = k; this.root.querySelectorAll('[data-school]').forEach((e2) => e2.classList.toggle('selected', e2.dataset.school === schoolMode)); },
-              }, el('b', {}, lab), el('div', { class: 'small muted' }, blurb))
-            ),
-          ),
-        ),
-        el('div', { class: 'field' },
-          el('label', {}, 'Series — how big do you race?'),
-          el('div', { class: 'depth-grid' },
-            ...Object.values(SERIES).map((s) =>
-              el('div', {
-                class: 'depth-card' + (s.key === series ? ' selected' : ''),
-                'data-series': s.key,
-                onclick: () => { series = s.key; this.root.querySelectorAll('[data-series]').forEach((e2) => e2.classList.toggle('selected', e2.dataset.series === series)); },
-              }, el('b', {}, `${s.icon} ${s.label}`), el('div', { class: 'small muted' }, `${s.fieldSize} riders/gate · ${s.blurb}`))
-            ),
-          ),
-        ),
-        el('div', { class: 'field' },
-          el('label', {}, 'Simulation depth — how much do you want to live yourself?'),
-          el('div', { class: 'depth-grid' }, ...depthCards),
-        ),
-        el('button', { class: 'btn primary wide', onclick: () => this.startGame({ name, depth, birthdate, campaign, schoolMode, series }) }, `Begin — ${thisYear} Season`),
-      ),
-      el('p', { class: 'faint small center' }, 'Prototype v0.1 · Legacy Studios · Build memories, not mechanics.'),
-    );
+    const view = el('div', {}, header, card,
+      el('p', { class: 'faint small center' }, 'Prototype · Legacy Studios · Build memories, not mechanics.'));
     this.root.replaceChildren(view);
+    window.scrollTo(0, 0);
   }
 
-  startGame({ name, depth, birthdate, campaign, schoolMode, series }) {
+  startGame(o) {
     this.clearSave(); // a fresh life replaces any prior save
-    this.game = new Game({ riderName: name, depth, birthdate, campaign, schoolMode, series, seed: Date.now() });
+    this.game = new Game({ riderName: o.name, depth: o.depth, birthdate: o.birthdate, campaign: o.campaign,
+      series: o.series, avatar: o.avatar, background: o.background, seed: Date.now() });
+    this.onboard = null;
     this.tab = 'week';
     this.startWeek();
   }
@@ -235,6 +203,7 @@ export class App {
     const supportLabels = ['Family Supported', 'Local Shop Rider', 'Dealer Supported', 'Regional Support'];
     return el('div', { class: 'topbar' },
       el('div', { class: 'brand' },
+        el('span', { style: 'margin-right:4px' }, g.rider.avatar ?? '🧒'),
         g.isParent ? el('span', {}, 'Raising ', g.rider.name) : el('span', {}, g.rider.name),
         el('small', {}, ` · age ${g.rider.age} · ${g.rider.klass}`),
       ),
@@ -1421,7 +1390,7 @@ export class App {
           el('button', { class: 'btn primary wide', onclick: () => this.nextSeason() },
             `▶️ ${g.isParent ? 'Raise' : 'Ride'} ${g.seasonYear + 1} — ${g.rider.name} at ${(g.seasonYear + 1) - g.rider.birthYear} (${g.classForAge((g.seasonYear + 1) - g.rider.birthYear)})`),
           el('button', { class: 'btn ghost wide', onclick: () => this.renderRetirement() }, '🏆 Retire & look back on the career'),
-          el('button', { class: 'btn ghost wide', onclick: () => { this.clearSave(); this.renderTitle(); } }, '🔁 Start a whole new life'),
+          el('button', { class: 'btn ghost wide', onclick: () => { this.clearSave(); this.onboard = null; this.renderTitle(); } }, '🔁 Start a whole new life'),
         ),
       ),
       el('p', { class: 'faint small center' }, 'Legacy: Motocross · Prototype v0.2 · Build memories, not mechanics.'),
@@ -1488,7 +1457,7 @@ export class App {
         !memories.length ? el('div', { class: 'empty' }, 'A quiet career.') : null,
       ),
       el('div', { class: 'card center' },
-        el('button', { class: 'btn primary wide', onclick: () => { this.clearSave(); this.renderTitle(); } }, '🔁 Begin a new life'),
+        el('button', { class: 'btn primary wide', onclick: () => { this.clearSave(); this.onboard = null; this.renderTitle(); } }, '🔁 Begin a new life'),
       ),
       el('p', { class: 'faint small center' }, 'Legacy: Motocross · Prototype v0.2 · We create interactive lives worth remembering.'),
     );

@@ -48,6 +48,7 @@ export function createInitialState(riderName = 'Riley', seed = Date.now(), birth
 
     rider: {
       name: riderName,
+      avatar: '🧒',
       birthdate,
       birthYear,
       age,
