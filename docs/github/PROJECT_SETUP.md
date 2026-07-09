@@ -142,3 +142,8 @@ The P0 fix issue drafts in `docs/github/issues/18_p0_calendar_loretta_marketplac
 - Calendar and season-flow regression tests
 
 These drafts are documentation only and should not be treated as approval to implement gameplay, call the GitHub API, create real GitHub issues directly, or delete existing planned issues.
+
+
+## Master roadmap reference
+
+Use [`MASTER_ROADMAP.md`](../../MASTER_ROADMAP.md) as the release-level source of truth for the App Store v1.0 product goal, required systems, non-goals, high-risk areas, launch readiness checklist, and version roadmap. When triaging GitHub planning work, preserve existing future issues and categorize them into v1.0, v1.1, v2.0, or future rather than deleting them.
