@@ -118,6 +118,8 @@ src/
     raceEngine.js         steppable lap-by-lap simulation
 ```
 
+The master roadmap lives in [`MASTER_ROADMAP.md`](./MASTER_ROADMAP.md) and defines the App Store v1.0 cutline, version roadmap, launch readiness checklist, and release-horizon categories for future work.
+
 The design bible lives in [`design/`](./design) and is the source of truth. The
 prototype implements its **First Prototype Target**. Key locked design decisions
 (memories, object/place history, People-not-NPCs, the Career Support Ladder, the
