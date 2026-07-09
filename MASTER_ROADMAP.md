@@ -77,6 +77,7 @@ Version 1.0 should feel stable, replayable, emotional, and coherent on mobile de
 - Age & Responsibility progression
 - First bike
 - Month-based calendar
+- Home Region Selection and initial Geographic World Simulation scope
 - Season planner
 - Season lock-in
 - Go racing flow
@@ -108,11 +109,11 @@ These systems remain planned, but they are not launch blockers for App Store Ver
 - Full dynamic world simulation
 - Full parent campaign
 - Era selection
-- Advanced weather
-- Deep travel/camping
+- Advanced regional weather
+- Deep travel/camping beyond basic travel distance and cost planning
 - Full garage museum
 - Advanced social systems
-- All bike classes/regions/tracks
+- Full all-states/all-regions geographic simulation and all regional tracks
 - Paid expansions
 
 ## 7. Current High-Risk Areas
@@ -127,6 +128,7 @@ These systems remain planned, but they are not launch blockers for App Store Ver
 - Monetization balance
 - Garage inventory complexity
 - Marketplace/bike compatibility
+- Geographic scope creep across regions, tracks, weather, dealers, and travel
 
 ## 8. Launch Readiness Checklist
 
@@ -167,3 +169,4 @@ Planning documents should remain documentation-only until a scoped implementatio
 8. Polish UI
 9. Run TestFlight
 10. Submit App Store v1.0
+11. Keep Home Region Selection, Geographic World Simulation, Regional Racing Calendar, Regional Tracks, Travel Distance/Cost, Regional Weather, Regional Reputation, Local Dealer Network, and Hometown Pride scoped to the approved v1.0 cutline
