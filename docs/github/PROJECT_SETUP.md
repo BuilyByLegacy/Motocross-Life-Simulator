@@ -143,6 +143,21 @@ The P0 fix issue drafts in `docs/github/issues/18_p0_calendar_loretta_marketplac
 
 These drafts are documentation only and should not be treated as approval to implement gameplay, call the GitHub API, create real GitHub issues directly, or delete existing planned issues.
 
+## Living World, Reputation, and Legacy backlog planning references
+
+The Living World, Reputation, and Legacy backlog issue drafts in `docs/github/issues/19_living_world_reputation_legacy_backlog_issues.md` define the next major simulation, relationship, and legacy systems for **Motocross: Chasing the Dream**. Use these drafts when triaging design work for:
+
+- Living Motocross World
+- Dynamic AI Careers
+- Group Reputation
+- Dealer Network
+- Bike Lifecycle
+- Hall of Fame and Legacy Archive
+- Rider Personality and Identity
+- Race Weekend Decision Events
+- DD-0039, DD-0040, DD-0041, DD-0042
+
+These drafts are documentation only and should not be treated as approval to implement gameplay, call the GitHub API, create real GitHub issues directly, or add a free-roam Pit Area system. Race weekend depth should come through decisions, events, notifications, and consequences.
 
 ## Master roadmap reference
 
