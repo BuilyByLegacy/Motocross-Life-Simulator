@@ -48,7 +48,7 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
           DUPLICATE_MODE: ${{ inputs.duplicate_mode }}
         run: |
-          node scripts/create-github-issues-from-drafts.js \
+          node scripts/create-github-issues-from-drafts.cjs \
             --path "$DRAFT_PATH" \
             --duplicate-mode "$DUPLICATE_MODE" \
             $([ "$DRY_RUN" = "true" ] && echo "--dry-run")
