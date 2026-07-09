@@ -1252,6 +1252,8 @@ export class Game {
 
     this.log(`🏁 ${result.race.name}: ${result.dnf ? 'DNF' : ordinal(overall) + ' overall'} (+${result.points} pts).`);
     this.currentRace = null;
+    // Single choke point for race analytics (#247), regardless of sim depth.
+    this.bus.emit('race:completed', { week: this.week, klass: result.klass, overall, points: result.points, dnf: !!result.dnf });
     return result;
   }
 
@@ -1353,6 +1355,8 @@ export class Game {
       supportLevel: this.family.support_level,
       topMemory: this.memory.top(1)[0]?.title ?? null,
     });
+    // Analytics choke point for a finalized season (#247).
+    this.bus.emit('season:completed', { season: this.state.seasonNumber, week: this.week, points: s.points });
   }
 
   // Season-scoped flags that should reset each year; everything else persists

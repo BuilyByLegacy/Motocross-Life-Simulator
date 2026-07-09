@@ -1,8 +1,10 @@
 // Entry point. Boots the app into #app.
 import { App } from './ui.js';
 import { DiagnosticsLog } from './systems/diagnostics.js';
+import { Analytics } from './systems/analytics.js';
 
 const DIAG_KEY = 'legacy_mx_diag';
+const CONSENT_KEY = 'legacy_mx_analytics_consent';
 
 // Local, privacy-safe crash/error logging (#246). Loaded before the app so an
 // error during boot is still captured. Persists to its own localStorage key,
@@ -12,13 +14,19 @@ diag.install(window, {
   persist: (entries) => { try { localStorage.setItem(DIAG_KEY, JSON.stringify(entries)); } catch (e) { /* storage may be unavailable */ } },
 });
 
+// Local, no-network analytics (#247). Consent-gated; nothing is transmitted.
+// The web prototype defaults ON (data never leaves the device); a child-directed
+// native launch must default OFF and require explicit opt-in.
+const analytics = new Analytics({ consent: readConsent() });
+
 const root = document.getElementById('app');
-const app = new App(root, { diag });
+const app = new App(root, { diag, analytics });
 app.mount();
 
 // Expose for quick console poking / QA verification during prototyping.
 window.__legacy = app;
 window.__diag = diag;
+window.__analytics = analytics;
 
 function loadDiag() {
   try {
@@ -26,5 +34,14 @@ function loadDiag() {
     return DiagnosticsLog.fromJSON(raw ? JSON.parse(raw) : []);
   } catch (e) {
     return new DiagnosticsLog();
+  }
+}
+
+function readConsent() {
+  try {
+    const raw = localStorage.getItem(CONSENT_KEY);
+    return raw == null ? true : raw === 'true';
+  } catch (e) {
+    return true;
   }
 }

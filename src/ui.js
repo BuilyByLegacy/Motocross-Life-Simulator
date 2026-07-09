@@ -37,10 +37,11 @@ const PERSON_ICON = { dad: '👨', mom: '👩', coach_mike: '🧢', rival_ethan:
 const SAVE_KEY = 'legacy_mx_save_v2';
 
 export class App {
-  constructor(root, { diag = null } = {}) {
+  constructor(root, { diag = null, analytics = null } = {}) {
     this.root = root;
     this.game = null;
     this.diag = diag; // local crash/error log (#246); may be null in tests
+    this.analytics = analytics; // local, no-network analytics (#247); may be null
     this.tab = 'week';
     this.weekContent = () => el('div');
     this.digest = [];
@@ -48,11 +49,28 @@ export class App {
     this.plannerSel = [];
     this.race = null;
     this.lastResult = null;
+    this._analyticsWired = null;
   }
 
-  // Record a diagnostic if a log is wired (#246). Never throws.
+  // Record a diagnostic if a log is wired (#246). Also mirrors to analytics as a
+  // crash_error so error volume shows in the funnel. Never throws.
   _diag(type, message, context) {
     try { this.diag?.record({ type, message, context }); } catch (e) { /* diagnostics must never break play */ }
+    try { this.analytics?.track('crash_error', { error_type: type }); } catch (e) { /* analytics must never break play */ }
+  }
+
+  // Fire an analytics event if a tracker is wired (#247). Never throws.
+  _track(event, props) {
+    try { this.analytics?.track(event, props); } catch (e) { /* analytics must never break play */ }
+  }
+
+  // Subscribe the tracker to a game's bus once, for the multi-site domain events
+  // (race/season completion) that are cleanest to capture at their choke points.
+  _wireGameAnalytics(g) {
+    if (!g || !this.analytics || this._analyticsWired === g) return;
+    this._analyticsWired = g;
+    g.bus.on('race:completed', (p) => this._track('race_completed', p));
+    g.bus.on('season:completed', (p) => this._track('season_completed', p));
   }
 
   mount() {
@@ -95,6 +113,8 @@ export class App {
       return;
     }
     this._corruptSave = false;
+    this._wireGameAnalytics(this.game);
+    this._track('save_loaded', { season: this.game.state.seasonNumber, week: this.game.week });
     this.tab = 'week';
     this.startWeek();
   }
@@ -203,6 +223,8 @@ export class App {
     this.clearSave(); // a fresh life replaces any prior save
     this.game = new Game({ riderName: o.name, depth: o.depth, birthdate: o.birthdate, campaign: o.campaign,
       avatar: o.avatar, background: o.background, seed: Date.now() });
+    this._wireGameAnalytics(this.game);
+    this._track('career_started', { campaign: o.campaign, background: o.background, depth: o.depth, klass: this.game.rider.klass });
     this.onboard = null;
     this.tab = 'week';
     this.startWeek();
@@ -685,6 +707,7 @@ export class App {
     if (g.needsRaceApproval()) { g.advanceSeasonCommit('request_approval'); g.advanceSeasonCommit('grant_approval'); }
     g.advanceSeasonCommit('lock');
     g.advanceSeasonCommit('start');
+    if (g.isSeasonLocked()) this._track('season_committed', { season: g.state.seasonNumber });
     this.saveGame();
     if (edit) { this._seasonView = true; this.render(); }
     else this.handlePlanning();
@@ -1041,6 +1064,7 @@ export class App {
 
   startParentRace(stanceKey) {
     const g = this.game;
+    this._track('race_weekend_started', { week: g.week, klass: g.rider.klass });
     const strategy = g.prepParentRace(stanceKey, this._payPit);
     this._payPit = false;
     const race = g.buildRace();
@@ -1067,6 +1091,7 @@ export class App {
 
   quickSimRace() {
     const g = this.game;
+    this._track('race_weekend_started', { week: g.week, klass: g.rider.klass });
     const entries = this.raceEntries();
     const primaryBike = entries.length ? entries[0].bike : g.bike;
     const race = g.buildRace(primaryBike);
@@ -1083,6 +1108,7 @@ export class App {
     this._pendingEntries = entries;
     const primaryBike = entries.length ? entries[0].bike : this.game.bike;
     this.race = this.game.buildRace(primaryBike);
+    this._track('race_weekend_started', { week: this.game.week, klass: this.game.rider.klass });
     this.showWeek(() => this.viewMoto());
   }
 
@@ -1600,7 +1626,7 @@ export class App {
             ),
             el('div', { style: 'text-align:right' },
               el('div', { class: 'mono' }, '$' + i.price),
-              el('button', { class: 'btn small primary', disabled: !afford, onclick: () => { const o = g.orderDealerPart(i.id); if (o && !o.error) this._flash(`Ordered ${i.label}.`); this.saveGame(); this.render(); } }, 'Order'),
+              el('button', { class: 'btn small primary', disabled: !afford, onclick: () => { const o = g.orderDealerPart(i.id); if (o && !o.error) { this._flash(`Ordered ${i.label}.`); this._track('dealer_order', { item: i.kind ?? null, amount: o.price ?? i.price ?? null }); } this.saveGame(); this.render(); } }, 'Order'),
             ),
           );
         }),
@@ -1793,7 +1819,7 @@ export class App {
           d.conditionNotes ? el('div', { class: 'small muted' }, `"${d.conditionNotes}"`) : null,
         ),
         el('div', { class: 'listing-actions' },
-          el('button', { class: 'btn small primary', onclick: () => { const s = g.completeListingSale(d.id); if (s) this._flash(`Sold ${d.name} for $${s.price}.`); this.saveGame(); this.render(); } }, 'Accept a buyer'),
+          el('button', { class: 'btn small primary', onclick: () => { const s = g.completeListingSale(d.id); if (s) { this._flash(`Sold ${d.name} for $${s.price}.`); this._track('bike_sold', { amount: s.price ?? null }); } this.saveGame(); this.render(); } }, 'Accept a buyer'),
         ),
       )),
     );
@@ -1825,7 +1851,7 @@ export class App {
 
   doBuy(id) {
     const res = this.game.market.buy(id);
-    if (res.ok) { this._marketDetail = null; this._offerFor = null; }
+    if (res.ok) { this._marketDetail = null; this._offerFor = null; this._track('marketplace_purchase', { amount: res.price ?? res.amount ?? null, kind: res.kind ?? null }); }
     this._flash(res.msg);
     this.render();
   }
@@ -1911,7 +1937,24 @@ export class App {
         el('p', { class: 'small faint' }, 'New to the loop, or skipped the intro? Replay the onboarding coach any time.'),
         el('button', { class: 'btn ghost wide', onclick: () => { g.replayTutorial(); this.saveGame(); this.tab = 'week'; this._seasonView = false; this.render(); window.scrollTo(0, 0); } }, '🎓 Replay tutorial'),
         this.diagnosticsLine(),
+        this.analyticsLine(),
       ),
+    );
+  }
+
+  // Analytics consent toggle + local event count (#247). Data never leaves the
+  // device; this is the opt-out surface required for compliance.
+  analyticsLine() {
+    if (!this.analytics) return null;
+    const on = this.analytics.consent;
+    const n = this.analytics.events.length;
+    return el('div', { style: 'margin-top:12px' },
+      el('p', { class: 'small faint' }, `Anonymous local analytics are ${on ? 'ON' : 'OFF'}${on ? ` · ${n} event${n === 1 ? '' : 's'} this device` : ''}. Nothing ever leaves your device.`),
+      el('button', { class: 'btn ghost small', onclick: () => {
+        const next = this.analytics.setConsent(!on);
+        try { localStorage.setItem('legacy_mx_analytics_consent', String(next)); } catch (e) {}
+        this.render();
+      } }, on ? 'Turn analytics off' : 'Turn analytics on'),
     );
   }
 
