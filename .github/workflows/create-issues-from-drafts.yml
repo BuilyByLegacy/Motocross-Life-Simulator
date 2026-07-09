@@ -23,7 +23,7 @@ on:
           - create
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 jobs:
@@ -47,8 +47,23 @@ jobs:
           DRAFT_PATH: ${{ inputs.draft_path }}
           DRY_RUN: ${{ inputs.dry_run }}
           DUPLICATE_MODE: ${{ inputs.duplicate_mode }}
+          ARCHIVE_COMPLETED_DIR: docs/github/issues/completed
         run: |
           node scripts/create-github-issues-from-drafts.cjs \
             --path "$DRAFT_PATH" \
             --duplicate-mode "$DUPLICATE_MODE" \
+            --archive-completed-dir "$ARCHIVE_COMPLETED_DIR" \
             $([ "$DRY_RUN" = "true" ] && echo "--dry-run")
+
+      - name: Commit archived draft files
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/github/issues
+          if git diff --cached --quiet; then
+            echo "No draft files were archived."
+            exit 0
+          fi
+          git commit -m "Archive imported issue drafts"
+          git push

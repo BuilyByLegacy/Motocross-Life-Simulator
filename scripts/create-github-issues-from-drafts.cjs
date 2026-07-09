@@ -10,6 +10,7 @@ function parseArgs(argv) {
     path: process.env.DRAFT_PATH || 'docs/github/issues',
     dryRun: String(process.env.DRY_RUN || '').toLowerCase() === 'true',
     duplicateMode: process.env.DUPLICATE_MODE || 'skip',
+    archiveCompletedDir: process.env.ARCHIVE_COMPLETED_DIR || 'docs/github/issues/completed',
   };
 
   for (let i = 2; i < argv.length; i += 1) {
@@ -24,6 +25,10 @@ function parseArgs(argv) {
       args.duplicateMode = argv[++i];
     } else if (arg.startsWith('--duplicate-mode=')) {
       args.duplicateMode = arg.slice('--duplicate-mode='.length);
+    } else if (arg === '--archive-completed-dir') {
+      args.archiveCompletedDir = argv[++i];
+    } else if (arg.startsWith('--archive-completed-dir=')) {
+      args.archiveCompletedDir = arg.slice('--archive-completed-dir='.length);
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -40,7 +45,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`Usage: node scripts/create-github-issues-from-drafts.js [options]\n\nOptions:\n  --path <path>             Markdown file or directory to import (default: docs/github/issues)\n  --dry-run                 Print the issues that would be created without calling GitHub\n  --duplicate-mode <mode>   "skip" or "create" when an issue title already exists (default: skip)\n`);
+  console.log(`Usage: node scripts/create-github-issues-from-drafts.js [options]\n\nOptions:\n  --path <path>                       Markdown file or directory to import (default: docs/github/issues)\n  --dry-run                           Print the issues that would be created without calling GitHub\n  --duplicate-mode <mode>             "skip" or "create" when an issue title already exists (default: skip)\n  --archive-completed-dir <path>      Directory where fully imported draft files are moved (default: docs/github/issues/completed)\n`);
 }
 
 function getMarkdownFiles(inputPath) {
@@ -100,6 +105,35 @@ function extractLabels(body) {
   }
 
   return [...labels];
+}
+
+function getArchivePath(filePath, archiveCompletedDir) {
+  const archiveDir = path.resolve(process.cwd(), archiveCompletedDir);
+  const resolvedFile = path.resolve(filePath);
+
+  if (path.dirname(resolvedFile) === archiveDir) {
+    return null;
+  }
+
+  return path.join(archiveDir, path.basename(filePath));
+}
+
+function archiveCompletedFiles({ fileProgress, archiveCompletedDir }) {
+  for (const [filePath, progress] of fileProgress) {
+    if (progress.total === 0 || progress.created + progress.skipped !== progress.total) {
+      continue;
+    }
+
+    const archivePath = getArchivePath(filePath, archiveCompletedDir);
+    if (!archivePath) {
+      console.log(`Draft file already archived: ${path.relative(process.cwd(), filePath)}`);
+      continue;
+    }
+
+    fs.mkdirSync(path.dirname(archivePath), { recursive: true });
+    fs.renameSync(filePath, archivePath);
+    console.log(`Archived draft file: ${path.relative(process.cwd(), filePath)} -> ${path.relative(process.cwd(), archivePath)}`);
+  }
 }
 
 function sleep(ms) {
@@ -206,7 +240,12 @@ async function ensureLabel({ repo, label, token, cache }) {
 async function main() {
   const args = parseArgs(process.argv);
   const files = getMarkdownFiles(args.path);
-  const issues = files.flatMap(parseDraftFile);
+  const issuesByFile = files.map((file) => ({ file, issues: parseDraftFile(file) }));
+  const issues = issuesByFile.flatMap(({ issues }) => issues);
+  const fileProgress = new Map(issuesByFile.map(({ file, issues: fileIssues }) => [
+    file,
+    { total: fileIssues.length, created: 0, skipped: 0 },
+  ]));
 
   console.log(`Found ${issues.length} issue draft(s) in ${files.length} Markdown file(s).`);
 
@@ -235,6 +274,7 @@ async function main() {
   for (const issue of issues) {
     if (args.duplicateMode === 'skip' && existingIssueTitles.has(issue.title)) {
       console.log(`Skipped existing open issue: ${issue.title}`);
+      fileProgress.get(path.resolve(process.cwd(), issue.source)).skipped += 1;
       continue;
     }
 
@@ -255,9 +295,12 @@ async function main() {
     });
 
     existingIssueTitles.add(issue.title);
+    fileProgress.get(path.resolve(process.cwd(), issue.source)).created += 1;
     console.log(`Created issue #${created.number}: ${created.title}`);
     await sleep(500);
   }
+
+  archiveCompletedFiles({ fileProgress, archiveCompletedDir: args.archiveCompletedDir });
 }
 
 main().catch((error) => {
