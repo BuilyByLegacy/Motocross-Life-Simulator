@@ -10,6 +10,12 @@ import { SERIES, CAMPS as CAMPS_REF, PART_INFO as PART_INFO_REF, RIDER_AVATARS a
 import { provenanceSummary as provSummary } from './systems/assetProvenance.js';
 
 // tiny hyperscript helper
+// Format a career-comparison value (null = redacted/hidden).
+function fmtCmp(v) {
+  if (v == null) return '—';
+  return String(v);
+}
+
 function el(tag, props = {}, ...kids) {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
@@ -1340,6 +1346,7 @@ export class App {
     if (this._phoneApp === 'marketplace' && g.phoneAccess('marketplace').ok) return this.renderMarket();
     if (this._phoneApp === 'notifications') return this.renderNotifications();
     if (this._phoneApp === 'dealer' && g.phoneAccess('dealer').ok) return this.renderDealerApp();
+    if (this._phoneApp === 'connected' && g.phoneAccess('connected').ok) return this.renderConnectedApp();
     if (this._phoneApp && ['messages', 'social'].includes(this._phoneApp)) return this.renderPhoneStub(this._phoneApp);
 
     const apps = g.phoneApps();
@@ -1436,6 +1443,115 @@ export class App {
           );
         }),
       ),
+    );
+  }
+
+  // Connected Careers app: your card, friends, leaderboards, compare (#114–#122).
+  renderConnectedApp() {
+    const g = this.game;
+    const sub = this._connSub ?? 'card';
+    const back = el('div', { class: 'phone-appbar' },
+      el('button', { class: 'btn ghost small', onclick: () => { this._phoneApp = null; this._connSub = null; this._connCompare = null; this.render(); } }, '‹ Phone'),
+      el('b', {}, '👥 Connected'),
+      el('span', {}),
+    );
+    const tabs = el('div', { class: 'goal-chips', style: 'margin-bottom:10px' },
+      ...[['card', 'My Card'], ['friends', 'Friends'], ['board', 'Leaderboards']].map(([k, label]) =>
+        el('button', { class: 'goal-chip' + (sub === k ? ' on' : ''), onclick: () => { this._connSub = k; this._connCompare = null; this.render(); } }, label)),
+    );
+    let body;
+    if (sub === 'friends') body = this.connectedFriends();
+    else if (sub === 'board') body = this.connectedBoard();
+    else body = this.connectedMyCard();
+    return el('div', { class: 'phone' }, back, tabs, body);
+  }
+
+  cardView(card, { compact = false } = {}) {
+    if (!card) return null;
+    return el('div', { class: 'career-card' },
+      el('div', { class: 'cc-head' }, el('span', { class: 'cc-avatar' }, card.avatar ?? '🧒'),
+        el('div', {}, el('b', {}, card.name), el('div', { class: 'small', style: 'color:var(--amber-2)' }, card.storyTag))),
+      el('div', { class: 'small muted' }, card.headline),
+      compact ? null : el('div', { class: 'cc-stats' },
+        el('span', {}, `🏆 ${card.wins}W`), el('span', {}, `🥇 ${card.championships} titles`),
+        el('span', {}, `⭐ legacy ${card.legacyRating}`), card.money != null ? el('span', {}, `💰 $${card.money}`) : null,
+        el('span', {}, `🏍️ ${card.bikesOwned} bikes`)),
+    );
+  }
+
+  connectedMyCard() {
+    const g = this.game;
+    const card = g.careerCard();
+    const priv = g.state.cardPrivacy ?? [];
+    const fields = [['finances', '💰 Money'], ['injuries', '🩹 Injuries'], ['family', '🏡 Family'], ['sponsors', '🤝 Sponsors']];
+    return el('div', {},
+      this.cardView(card),
+      el('div', { class: 'card' },
+        el('div', { class: 'eyebrow' }, 'Privacy — hide before sharing'),
+        el('div', { class: 'goal-chips' }, ...fields.map(([k, label]) =>
+          el('button', { class: 'goal-chip' + (priv.includes(k) ? ' on' : ''), onclick: () => { g.toggleCardPrivacy(k); this.saveGame(); this.render(); } }, (priv.includes(k) ? '🔒 ' : '') + label))),
+        el('div', { class: 'toolbar', style: 'margin-top:10px' },
+          el('button', { class: 'btn primary', onclick: () => { const code = g.exportCareer(); this._connShare = code; if (navigator.clipboard) navigator.clipboard.writeText(code).catch(() => {}); this._flash('Career code copied — share it with a friend.'); this.render(); } }, '📤 Share my career')),
+        this._connShare ? el('div', { class: 'share-code' }, this._connShare) : null,
+      ),
+    );
+  }
+
+  connectedFriends() {
+    const g = this.game;
+    if (this._connCompare) {
+      const cmp = g.compareToFriend(this._connCompare);
+      const f = g.friends.get(this._connCompare);
+      if (!cmp) return el('div', { class: 'empty' }, 'Friend not found.');
+      return el('div', {},
+        el('button', { class: 'btn ghost small', onclick: () => { this._connCompare = null; this.render(); } }, '‹ Friends'),
+        el('div', { class: 'card' }, el('h3', {}, `You vs ${f.card.name}`),
+          el('p', { class: 'small', style: 'color:var(--amber-2)' }, cmp.narrative),
+          ...Object.entries(cmp.groups).map(([group, rows]) => el('div', {},
+            el('div', { class: 'eyebrow', style: 'margin-top:8px' }, group),
+            ...rows.map((r) => el('div', { class: 'cmp-row' }, el('span', {}, r.label), el('span', { class: 'mono' }, `${fmtCmp(r.mine)} · ${fmtCmp(r.theirs)}`))))),
+        ),
+      );
+    }
+    const friends = g.friends.list();
+    return el('div', {},
+      el('div', { class: 'card' },
+        el('div', { class: 'eyebrow' }, 'Add a friend by career code'),
+        el('input', { class: 'mk-search-input', placeholder: 'Paste MX1:… code', value: this._connImport ?? '', oninput: (e) => { this._connImport = e.target.value; }, onchange: (e) => { this._connImport = e.target.value; } }),
+        el('button', { class: 'btn primary', style: 'margin-top:8px', onclick: () => {
+          const res = g.importFriend((this._connImport ?? '').trim());
+          if (res.error) this._flash('That code didn’t work — check it and try again.');
+          else { this._flash(`Added ${res.card.name}.`); this._connImport = ''; }
+          this.saveGame(); this.render();
+        } }, '➕ Add friend'),
+      ),
+      friends.length
+        ? el('div', {}, ...friends.map((c) => el('div', { class: 'card', style: 'padding:10px 12px' },
+            this.cardView(c),
+            el('div', { class: 'toolbar', style: 'margin-top:8px' },
+              el('button', { class: 'btn ghost small', onclick: () => { this._connCompare = c.id; this.render(); } }, '⚖️ Compare'),
+              el('button', { class: 'btn ghost small', onclick: () => { const cam = g.addFriendCameo(c.id); if (cam) this._flash(`${c.name} will show up in your world.`); this.saveGame(); this.render(); } }, '🌎 World cameo'),
+              el('button', { class: 'btn ghost small', onclick: () => { g.friends.remove(c.id); this.saveGame(); this.render(); } }, '✕'),
+            ))))
+        : el('div', { class: 'card empty' }, 'No friends yet. Share codes to compare careers.'),
+    );
+  }
+
+  connectedBoard() {
+    const g = this.game;
+    const cat = this._connCat ?? 'legacy';
+    const cats = [['legacy', '⭐ Legacy'], ['wins', '🏆 Wins'], ['championships', '🥇 Titles'], ['longevity', '📅 Longevity'], ['parent', '🏡 Parent']];
+    const board = g.leaderboard(cat);
+    const myName = g.rider.name;
+    return el('div', {},
+      el('div', { class: 'goal-chips', style: 'margin-bottom:10px' }, ...cats.map(([k, label]) =>
+        el('button', { class: 'goal-chip' + (cat === k ? ' on' : ''), onclick: () => { this._connCat = k; this.render(); } }, label))),
+      board.length
+        ? el('div', { class: 'card' }, ...board.map((row) => el('div', { class: 'lb-row' + (row.name === myName ? ' me' : '') },
+            el('span', { class: 'lb-rank' }, '#' + row.rank),
+            el('span', { class: 'lb-name' }, row.name, el('span', { class: 'faint small' }, ' · ' + row.storyTag)),
+            el('span', { class: 'mono' }, String(row.score)))))
+        : el('div', { class: 'card empty' }, 'Add friends to build a leaderboard.'),
     );
   }
 

@@ -23,6 +23,7 @@ import { ClassProgression, MomentumTracker, RivalTracker } from './systems/compe
 import { AssetRegistry, recordTransfer } from './systems/assetProvenance.js';
 import { MemoryTriggerRegistry, defaultTriggers } from './systems/memoryTriggers.js';
 import { NotificationQueue } from './systems/notifications.js';
+import { FriendsList, buildCareerCard, exportCard, importCard, leaderboard as buildLeaderboard, compareCareers, buildRecapCard, toWorldCameo, friendMilestones } from './systems/connectedCareers.js';
 import { buildGarageView, makeListingDraft, publishListing, completeSale } from './systems/garageView.js';
 import { phoneApps as buildPhoneApps, canAccess } from './systems/phoneHub.js';
 import { PhoneStateStore } from './systems/phoneState.js';
@@ -103,6 +104,9 @@ export class Game {
     // Phone / Internet hub notification queue (issue #74).
     this.notifications = NotificationQueue.fromJSON(this.state.notifications);
     this.phoneStateStore = PhoneStateStore.fromJSON(this.state.phoneState);
+    // Connected Careers — offline social layer (issues #114–#122).
+    this.friends = FriendsList.fromJSON(this.state.friends);
+    if (!this.state.cardPrivacy) this.state.cardPrivacy = [];
     if (!this.state.market.drafts) this.state.market.drafts = []; // listing drafts (#76)
     if (!this.state.market.orders) this.state.market.orders = []; // dealer orders (#39)
     // Feed the phone: big memories and race results become notifications (#74).
@@ -199,6 +203,7 @@ export class Game {
     this.state.memTriggers = this.memTriggers.toJSON();
     this.state.notifications = this.notifications.toJSON();
     this.state.phoneState = this.phoneStateStore.toJSON();
+    this.state.friends = this.friends.toJSON();
     return {
       v: 2,
       seed: this.rng.seed,
@@ -229,7 +234,49 @@ export class Game {
     g.memTriggers = MemoryTriggerRegistry.fromJSON(g.state.memTriggers, defaultTriggers());
     g.notifications = NotificationQueue.fromJSON(g.state.notifications);
     g.phoneStateStore = PhoneStateStore.fromJSON(g.state.phoneState);
+    g.friends = FriendsList.fromJSON(g.state.friends);
     return g;
+  }
+
+  // ---- Connected Careers: offline social layer (issues #114–#122) ----------
+  careerCard() { return buildCareerCard(this, { privacy: this.state.cardPrivacy ?? [] }); }
+  exportCareer() { return exportCard(this.careerCard()); }
+  // Toggle a privacy redaction on the shared card (#121).
+  toggleCardPrivacy(field) {
+    const p = this.state.cardPrivacy ?? (this.state.cardPrivacy = []);
+    const i = p.indexOf(field);
+    if (i >= 0) p.splice(i, 1); else p.push(field);
+    return p;
+  }
+  // Import a friend's career from a shared code; fire milestone notifications (#120).
+  importFriend(code) {
+    const card = importCard(code);
+    if (!card) return { error: 'invalid' };
+    const prev = this.friends.get(card.id)?.card ?? null;
+    for (const n of friendMilestones(prev, card)) {
+      this.notify({ source: 'social', priority: 'normal', title: n.title, body: n.body, actionTarget: { screen: 'phone' }, icon: n.icon });
+    }
+    this.friends.add(card, { day: this.dayIndex });
+    return { card };
+  }
+  // Leaderboard across the player + all friends (#116).
+  leaderboard(category = 'legacy', opts = {}) {
+    const cards = this.friends.list({ includeSelf: this.careerCard() });
+    return buildLeaderboard(cards, category, opts);
+  }
+  compareToFriend(id) {
+    const f = this.friends.get(id);
+    return f ? compareCareers(this.careerCard(), f.card) : null;
+  }
+  seasonRecapCard() { return buildRecapCard(this, { privacy: this.state.cardPrivacy ?? [] }); }
+  // Add a friend's career into the world as a named cameo rider (#122).
+  addFriendCameo(id) {
+    const f = this.friends.get(id);
+    if (!f) return null;
+    const cameo = toWorldCameo(f.card);
+    if (!this.state.cameos) this.state.cameos = [];
+    if (!this.state.cameos.some((c) => c.id === cameo.id)) this.state.cameos.push(cameo);
+    return cameo;
   }
 
   // ---- weekly loop ---------------------------------------------------------

@@ -20,6 +20,7 @@ export const PHONE_APPS = [
   { id: 'memories', name: 'Memories', icon: '💭', min: 0, sections: ['career', 'family', 'bikes'], links: ['memory'], desc: 'The story you are building, moment by moment.' },
   { id: 'news', name: 'MotoNews', icon: '🗞️', min: 0, sections: ['results', 'signings', 'weather', 'trends'], links: ['world'], desc: 'What is happening around the sport.' },
   { id: 'social', name: 'Social', icon: '📱', min: 13, sections: ['feed', 'post', 'followers'], links: ['sponsors', 'relationships'], desc: 'Post, follow riders, build sponsor value — and drama.' },
+  { id: 'connected', name: 'Connected', icon: '👥', min: 10, sections: ['my card', 'friends', 'leaderboards', 'compare'], links: ['career', 'memory'], desc: 'Share your career card, add friends, and compare stories.' },
 ];
 
 // Access tiers by age (#40). Parent mode gets full adult access from the start.
