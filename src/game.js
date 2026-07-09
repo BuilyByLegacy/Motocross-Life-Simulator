@@ -37,6 +37,7 @@ import { seasonFlowState, guardEdit, pruneExpiredEvents } from './systems/season
 import { assessReadiness, parentRepairDecision, applyRepair } from './systems/parentPrep.js';
 import { buildMonthCalendar } from './systems/monthCalendar.js';
 import { v1GarageOverview, availableUpgrades, upgradeById } from './systems/garageV1.js';
+import { makeSeasonCommitment, advanceCommitment, lockPreconditions, isLocked, goRacingChecklist } from './systems/seasonCommitment.js';
 
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
 
@@ -409,6 +410,48 @@ export class Game {
       startMonthIndex: 3, // amateur seasons ramp through spring — start in April
       currentWeek: this.week,
       year: this.seasonYear,
+    });
+  }
+
+  // ---- Season commitment lifecycle (issue #229; DD-0029) -------------------
+  seasonCommit() {
+    if (!this.state.seasonCommit) this.state.seasonCommit = makeSeasonCommitment(this.state.programSet ? 'active' : 'draft');
+    return this.state.seasonCommit;
+  }
+  // Context for lock preconditions: events, hard conflicts, budget, approval.
+  _commitContext() {
+    const planner = this.buildPlanner(this.state.program);
+    const summary = planner.reviewSummary(this.family.money);
+    const eventCount = planner.selectedEvents().length;
+    const hardConflicts = (summary.conflicts ?? []).filter((c) => c.severity === 'hard').length;
+    return { eventCount, hardConflicts, needsApproval: this.needsRaceApproval(), approvalGranted: this.seasonCommit().approvalGranted, overBudget: !!summary.overBudget, day: this.dayIndex };
+  }
+  // Advance the season commitment (review / request_approval / grant_approval /
+  // lock / start / complete / back_to_draft). Persists the new state.
+  advanceSeasonCommit(action) {
+    const next = advanceCommitment(this.seasonCommit(), action, this._commitContext());
+    if (!next.error) this.state.seasonCommit = next;
+    return next;
+  }
+  seasonLockPreconditions() { return lockPreconditions(this._commitContext()); }
+  isSeasonLocked() { return isLocked(this.seasonCommit()); }
+
+  // ---- Go Racing launch checklist (issue #230) -----------------------------
+  // The next committed race and its pre-race readiness, gating the Go Racing action.
+  goRacingChecklist() {
+    const next = (this.state.calendar ?? []).find((c) => c.week >= this.week && c.race);
+    if (!next) return goRacingChecklist({ event: null });
+    const race = next.race;
+    const entry = Math.round(35 * (race.entryMult ?? 1));
+    return goRacingChecklist({
+      event: { name: race.name, klass: race.kind, week: next.week },
+      seasonActive: this.isSeasonLocked() || this.state.programSet,
+      bikeReady: this.bikeRaceReady(),
+      feesAffordable: this.family.money >= entry,
+      klassEligible: true,
+      approvalOk: !this.needsRaceApproval() || this.seasonCommit().approvalGranted,
+      notInjured: !(this.mustMissRace && this.mustMissRace()),
+      alreadyRacedThisWeek: false,
     });
   }
 

@@ -619,7 +619,17 @@ export class App {
   }
 
   confirmProgram(edit) {
-    this.game.setProgram(this._programSel);
+    const g = this.game;
+    g.setProgram(this._programSel);
+    // Season commitment (DD-0029 / #229): can't lock with no events or a hard
+    // conflict; young riders route through parent approval; lock → active.
+    const pre = g.seasonLockPreconditions();
+    const hard = pre.blockers.filter((b) => b.code !== 'needs_approval');
+    if (hard.length) { this._flash(hard[0].message); this.saveGame(); this.render(); return; }
+    g.advanceSeasonCommit('review');
+    if (g.needsRaceApproval()) { g.advanceSeasonCommit('request_approval'); g.advanceSeasonCommit('grant_approval'); }
+    g.advanceSeasonCommit('lock');
+    g.advanceSeasonCommit('start');
     this.saveGame();
     if (edit) { this._seasonView = true; this.render(); }
     else this.handlePlanning();
@@ -678,11 +688,29 @@ export class App {
     );
   }
 
+  // Go Racing launch panel — the next committed race + its pre-race checklist,
+  // gating an explicit launch (issue #230). Null when no race is upcoming.
+  goRacingPanel() {
+    const g = this.game;
+    const chk = g.goRacingChecklist();
+    if (!chk.event) return null;
+    return el('div', { class: 'card', style: 'border-color:var(--amber)' },
+      el('div', { class: 'eyebrow' }, '🏁 Next Race'),
+      el('div', {}, el('b', {}, chk.event.name), ' ', el('span', { class: 'faint small' }, `${chk.event.klass ?? ''} · wk ${chk.event.week}`)),
+      el('div', { class: 'go-check', style: 'margin-top:6px' },
+        ...chk.items.map((i) => el('div', { class: 'small', style: `color:${i.ok ? 'var(--green)' : 'var(--red)'}` }, `${i.ok ? '✓' : '✗'} ${i.label}`))),
+      chk.canRace
+        ? el('button', { class: 'btn primary wide', style: 'margin-top:8px', onclick: () => { this._seasonView = false; this.render(); } }, `🏁 Go Racing: ${chk.event.name}`)
+        : el('div', { class: 'small', style: 'color:var(--red);margin-top:6px' }, '⚠️ ' + (chk.blockers[0]?.message ?? 'Not ready to race yet.')),
+    );
+  }
+
   viewSeasonBoard() {
     const g = this.game;
     const cal = g.state.calendar;
     return el('div', {},
       this.seasonFlowBanner(),
+      this.goRacingPanel(),
       this.lorettaDreamPanel(),
       el('div', { class: 'card' },
         el('div', { class: 'eyebrow' }, `${g.series.icon} ${g.series.label} · ${g.seasonYear}`),
