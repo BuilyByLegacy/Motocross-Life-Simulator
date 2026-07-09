@@ -1294,10 +1294,35 @@ export class App {
     );
   }
 
+  // Living Garage v1.0 home-hub overview (issues #219/#220).
+  garageHomeCard() {
+    const g = this.game;
+    const ov = g.garageOverview();
+    const cap = ov.capacity;
+    const upAvail = ov.upgrades.available;
+    return el('div', { class: 'card' },
+      el('div', { class: 'eyebrow' }, '🏠 The Garage'),
+      el('div', { class: 'garage-stats' },
+        el('div', { class: 'gs' }, el('b', {}, ov.counts.bikes), el('span', {}, 'bikes')),
+        el('div', { class: 'gs' }, el('b', {}, ov.counts.parts), el('span', {}, 'parts')),
+        el('div', { class: 'gs' }, el('b', {}, ov.museumCount), el('span', {}, 'on display')),
+        el('div', { class: 'gs' }, el('b', {}, ov.counts.listed), el('span', {}, 'listed')),
+      ),
+      cap.warning ? el('div', { class: 'small', style: `color:${cap.state === 'overflow' ? 'var(--red)' : 'var(--gold)'};margin-top:6px` }, '⚠️ ' + cap.warning) : null,
+      ov.onOrder.length ? el('div', { class: 'small faint', style: 'margin-top:6px' }, '📦 On order: ' + ov.onOrder.map((o) => o.label).join(', ')) : null,
+      upAvail.length ? el('div', { style: 'margin-top:8px' },
+        el('div', { class: 'small faint' }, 'Upgrade the shop:'),
+        el('div', { class: 'toolbar', style: 'flex-wrap:wrap;gap:6px;margin-top:4px' },
+          ...upAvail.slice(0, 4).map((u) => el('button', { class: 'btn small' + (u.affordable ? '' : ' ghost'), disabled: !u.affordable, title: u.blurb, onclick: () => { const r = g.buyGarageUpgrade(u.id); if (r.ok) this._flash(`Added ${u.name}.`); this.saveGame(); this.render(); } }, `${u.name} · $${u.cost}`))),
+      ) : null,
+    );
+  }
+
   renderGarage() {
     const g = this.game;
     const b = g.bike;
     return el('div', {},
+      this.garageHomeCard(),
       el('div', { class: 'card' },
         el('div', { class: 'eyebrow' }, 'The Garage — home, workshop, museum'),
         el('h2', {}, b.name),

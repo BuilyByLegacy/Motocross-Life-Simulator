@@ -318,6 +318,12 @@ button { font-family: inherit; }
 .season-cell .sc-title { font-size: 0.82rem; font-weight: 600; margin-top: 2px; }
 .season-cell .sc-sub { font-size: 0.7rem; color: var(--amber-2); margin-top: 2px; }
 
+/* ---- Living Garage home hub (issues #219/#220) ---- */
+.garage-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+.garage-stats .gs { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 4px; text-align: center; }
+.garage-stats .gs b { display: block; font-size: 1.1rem; color: var(--amber-2); }
+.garage-stats .gs span { font-size: 0.66rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.4px; }
+
 /* ---- Month-based season calendar (issue #224) ---- */
 .month-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 4px; }
 .month-label { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.3px; }

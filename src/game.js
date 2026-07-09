@@ -36,6 +36,7 @@ import { createRaceWeekend, readinessChecklist, registerWeekend, advanceWeekend 
 import { seasonFlowState, guardEdit, pruneExpiredEvents } from './systems/seasonFlow.js';
 import { assessReadiness, parentRepairDecision, applyRepair } from './systems/parentPrep.js';
 import { buildMonthCalendar } from './systems/monthCalendar.js';
+import { v1GarageOverview, availableUpgrades, upgradeById } from './systems/garageV1.js';
 
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
 
@@ -378,6 +379,30 @@ export class Game {
       needsApproval: this.needsRaceApproval(),
     });
   }
+  // ---- Living Garage v1.0 home hub (issues #219/#220) ----------------------
+  garageOverview() {
+    if (!this.state.garageUpgrades) this.state.garageUpgrades = [];
+    return v1GarageOverview({
+      view: this.garageView(),
+      orders: this.state.market.orders ?? [],
+      ownedUpgrades: this.state.garageUpgrades,
+      budget: this.family.money,
+    });
+  }
+  // Buy a garage upgrade — money out, added to owned (persists via state). #213/#220
+  buyGarageUpgrade(id) {
+    if (!this.state.garageUpgrades) this.state.garageUpgrades = [];
+    if (this.state.garageUpgrades.includes(id)) return { error: 'owned' };
+    const u = upgradeById(id);
+    if (!u) return { error: 'unknown' };
+    if (this.family.money < u.cost) return { error: 'afford' };
+    this.spend(u.cost);
+    this.state.garageUpgrades.push(id);
+    this.memory.record({ type: 'object', title: `Garage Upgrade: ${u.name}`, summary: `Added ${u.name.toLowerCase()} to the garage — it’s starting to feel like a real shop.`, tags: ['garage', 'milestone'], importance: 48 });
+    this.log(`🔧 Garage upgrade: ${u.name} ($${u.cost}).`);
+    return { ok: true, upgrade: u };
+  }
+
   // Month-grouped view of the season calendar for a real month-based UI (#224).
   monthCalendar() {
     return buildMonthCalendar(this.state.calendar ?? [], {

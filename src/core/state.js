@@ -128,6 +128,7 @@ export function createInitialState(riderName = 'Riley', seed = Date.now(), birth
     phoneState: null, // persisted phone app search/filter state (issue #89)
     raceWeekend: null, // current race-weekend lifecycle state (issues #160-#164)
     responsibility: null, // age/trust permission snapshot (issues #104-#110)
+    garageUpgrades: [], // owned Living Garage upgrades (issues #220/#213)
     seasonNumber: 1,
     startYear, // calendar year of season 1; season year = startYear + seasonNumber - 1
     _preparedWeek: 0, // guards once-per-week setup across save/load

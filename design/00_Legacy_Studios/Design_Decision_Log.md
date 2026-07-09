@@ -130,3 +130,18 @@ This log captures decisions made during planning so the reasoning is not lost.
 In addition, a **Skip Ahead** control (skip to next race / auto-sim N weeks) is available during play regardless of depth, and each race can be **ridden lap-by-lap or auto-simmed**. Importance thresholds (from the Memory Engine's importance score) decide what a given depth pauses for.  
 **Reason:** Player intent varies widely — "just work through the important decisions," "skip five years," "decide everything myself," "one career for a decade," "thirty careers to explore choices." Pacing should be a player-owned dial, not a fixed cadence, without changing the underlying simulation. Reuses the existing importance score rather than inventing a parallel system.  
 **Status:** Proposed
+
+## DD-0036 - The Garage Is a Living Space, Not an Inventory Menu
+**Decision:** The garage is the player's home hub, workshop, storage area, museum, and physical interface for the game. Core flows — bike work, the phone, the calendar, marketplace/dealer deliveries, and leaving for travel/practice/race — launch from the garage as tappable objects rather than from abstract menus.  
+**Reason:** Menus should feel like places and tools in the world. Making the garage a place the player returns to, and fills with bikes, parts, trophies, and family moments, reinforces "build memories, not mechanics" and "everything has history."  
+**Status:** Proposed — see `design/00_Legacy_Studios/living-garage-system.md` and issues #208, #217.
+
+## DD-0037 - Inventory Should Be Physically Represented When Possible
+**Decision:** Bikes, parts, tools, memorabilia, and gear should appear in the garage through shelves, racks, stands, boxes, walls, and displays rather than existing only in abstract menus. Physical representation is preferred wherever practical for the platform and scope.  
+**Reason:** A cracked number plate on a shelf or a stack of worn tires carries more meaning than a menu row. Physical storage grounds ownership, supports object memories, and drives the clutter/capacity and museum systems.  
+**Status:** Proposed — see issues #209, #211, #212, #214.
+
+## DD-0038 - The Garage Evolves With the Rider's Life
+**Decision:** The garage should visually and mechanically change as the rider ages, gains responsibility, moves up classes, changes support level, and eventually retires — from a corner of the family garage to a full race shop and finally a legacy museum.  
+**Reason:** Watching the space grow makes progression visible and emotional; the garage itself tells the story of the career and its ending. Supports "leave a legacy."  
+**Status:** Proposed — see issues #213, #218.
