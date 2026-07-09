@@ -41,6 +41,9 @@ import { makeSeasonCommitment, advanceCommitment, lockPreconditions, isLocked, g
 
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
 
+// Save envelope version — bump when the persisted schema changes (#242).
+export const SAVE_VERSION = 3;
+
 export const SIM_DEPTHS = {
   detailed: {
     key: 'detailed',
@@ -210,7 +213,7 @@ export class Game {
     this.state.phoneState = this.phoneStateStore.toJSON();
     this.state.friends = this.friends.toJSON();
     return {
-      v: 2,
+      v: SAVE_VERSION,
       seed: this.rng.seed,
       rngS: this.rng._s,
       state: this.state,
@@ -220,7 +223,31 @@ export class Game {
     };
   }
 
+  // A save is valid if it carries the minimum career state (#242 corruption guard).
+  static isValidSave(save) {
+    return !!(save && typeof save === 'object' && save.state && save.state.rider && save.state.rider.name);
+  }
+
+  // Bring an older save forward to the current schema (#242 versioning/migration).
+  // Field defaults are handled by each system's fromJSON, so migration mainly
+  // normalizes the envelope and fills any structural gaps.
+  static migrate(save) {
+    const v = save.v ?? 1;
+    if (v < 3) {
+      save.state ??= {};
+      save.state.market ??= { listings: [], seenIds: [] };
+      save.state.market.drafts ??= [];
+      save.state.market.orders ??= [];
+      save.state.garageUpgrades ??= [];
+      save.world ??= { riders: [], newsIdx: 0 };
+    }
+    save.v = SAVE_VERSION;
+    return save;
+  }
+
   static load(save) {
+    if (!Game.isValidSave(save)) throw new Error('Save file is missing or corrupt.');
+    save = Game.migrate(save);
     const g = new Game({ riderName: save.state.rider.name, depth: save.state.simDepth, seed: save.seed });
     g.state = save.state;
     g.rng.seed = save.seed;
