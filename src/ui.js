@@ -8,6 +8,7 @@ import { Game, SIM_DEPTHS, ordinal } from './game.js';
 import { RACE_STRATEGIES, estimateForm } from './engines/raceEngine.js';
 import { SERIES, CAMPS as CAMPS_REF, PART_INFO as PART_INFO_REF, RIDER_AVATARS as RIDER_AVATARS_REF, BACKGROUNDS as BACKGROUNDS_REF } from './data/content.js';
 import { provenanceSummary as provSummary } from './systems/assetProvenance.js';
+import { monthByIndex, adjacentMonth } from './systems/monthCalendar.js';
 
 // tiny hyperscript helper
 // Format a career-comparison value (null = redacted/hidden).
@@ -692,19 +693,42 @@ export class App {
             el('button', { class: 'btn ghost small', onclick: () => { this._seasonView = false; this.render(); } }, '📅 This week'),
           ),
         ),
-        el('p', { class: 'small faint' }, 'Your year at a glance. Races are fixed; camps are yours to attend or skip.'),
-        el('div', { class: 'season-grid' },
-          ...cal.map((c) => {
-            const isNow = c.week === g.week;
-            const kind = c.race ? 'race' : c.camp ? 'camp' : 'open';
-            return el('div', { class: 'season-cell ' + kind + (isNow ? ' now' : '') },
-              el('div', { class: 'sc-week' }, 'Wk ' + c.week + (isNow ? ' • now' : '')),
-              el('div', { class: 'sc-title' }, c.race ? '🏁 ' + c.race.name : c.camp ? '🏕️ Camp week' : c.title),
-              c.race ? el('div', { class: 'sc-sub' }, `${c.race.riders} riders`) : null,
-            );
-          }),
-        ),
+        el('p', { class: 'small faint' }, 'Your season, month by month. Races are fixed; camps are yours to attend or skip.'),
+        this.monthCalendarView(),
       ),
+    );
+  }
+
+  // Month-based season calendar view with month navigation (issue #224).
+  monthCalendarView() {
+    const g = this.game;
+    const mc = g.monthCalendar();
+    const monthIndex = this._calMonth != null && mc.months.some((m) => m.monthIndex === this._calMonth)
+      ? this._calMonth : mc.currentMonthIndex;
+    const month = monthByIndex(mc, monthIndex);
+    if (!month) return el('div', { class: 'empty' }, 'No season scheduled.');
+    const markerFace = { qualifier: '🎟️', regional: '🏅', national: '🏆', race: '🏁', camp: '🏕️', off: '☀️' };
+    const markerLabel = { qualifier: 'Area Qualifier', regional: 'Regional', national: 'National', race: 'Race', camp: 'Camp week', off: 'Open weekend' };
+    const canPrev = adjacentMonth(mc, monthIndex, -1) !== monthIndex;
+    const canNext = adjacentMonth(mc, monthIndex, +1) !== monthIndex;
+    return el('div', {},
+      el('div', { class: 'month-nav' },
+        el('button', { class: 'btn ghost small', disabled: !canPrev, onclick: () => { this._calMonth = adjacentMonth(mc, monthIndex, -1); this.render(); } }, '‹'),
+        el('div', { class: 'month-label' }, month.label),
+        el('button', { class: 'btn ghost small', disabled: !canNext, onclick: () => { this._calMonth = adjacentMonth(mc, monthIndex, +1); this.render(); } }, '›'),
+      ),
+      el('div', { class: 'month-grid' },
+        ...month.weeks.map((w) => el('div', { class: 'month-cell ' + w.kind + (w.isNow ? ' now' : '') + (w.isPast ? ' past' : '') },
+          el('div', { class: 'mc-week' }, 'Wk ' + w.week + (w.isNow ? ' • now' : '')),
+          el('div', { class: 'mc-title' }, `${markerFace[w.kind] ?? '•'} ${w.race ? w.race.name : markerLabel[w.kind]}`),
+          w.race ? el('div', { class: 'mc-sub' }, markerLabel[w.kind] + (w.race.riders ? ` · ${w.race.riders} riders` : '')) : null,
+          w.deadline ? el('div', { class: 'mc-deadline' }, '⏰ ' + w.deadline.label) : null,
+        )),
+      ),
+      mc.summary.upcomingDeadlines.length
+        ? el('div', { class: 'small faint', style: 'margin-top:10px' }, `⏰ Next deadline: ${mc.summary.upcomingDeadlines[0].label} (wk ${mc.summary.upcomingDeadlines[0].week})`)
+        : null,
+      el('div', { class: 'small faint', style: 'margin-top:4px' }, `${mc.summary.totalRaces} races · ${mc.summary.qualifiers} qualifier/championship · ${mc.summary.camps} camps this season`),
     );
   }
 

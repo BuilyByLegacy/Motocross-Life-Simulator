@@ -318,6 +318,22 @@ button { font-family: inherit; }
 .season-cell .sc-title { font-size: 0.82rem; font-weight: 600; margin-top: 2px; }
 .season-cell .sc-sub { font-size: 0.7rem; color: var(--amber-2); margin-top: 2px; }
 
+/* ---- Month-based season calendar (issue #224) ---- */
+.month-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 4px; }
+.month-label { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.3px; }
+.month-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.month-cell { border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; background: var(--panel-2); }
+.month-cell.race, .month-cell.qualifier, .month-cell.regional, .month-cell.national { border-color: var(--amber); background: linear-gradient(180deg, #2b2519, var(--panel-2)); }
+.month-cell.national { border-color: var(--gold); }
+.month-cell.camp { border-color: #4a5a3a; }
+.month-cell.off { opacity: 0.85; }
+.month-cell.now { outline: 2px solid var(--amber); }
+.month-cell.past { opacity: 0.5; }
+.month-cell .mc-week { font-size: 0.64rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.5px; }
+.month-cell .mc-title { font-size: 0.82rem; font-weight: 600; margin-top: 2px; }
+.month-cell .mc-sub { font-size: 0.7rem; color: var(--amber-2); margin-top: 2px; }
+.month-cell .mc-deadline { font-size: 0.66rem; color: var(--red); margin-top: 3px; }
+
 /* ---- Week board (7-day calendar) ---- */
 .week-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .day-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }

@@ -35,6 +35,7 @@ import { createBikeForClass, needsClassBike, classTransitionMemory } from './sys
 import { createRaceWeekend, readinessChecklist, registerWeekend, advanceWeekend } from './systems/raceWeekend.js';
 import { seasonFlowState, guardEdit, pruneExpiredEvents } from './systems/seasonFlow.js';
 import { assessReadiness, parentRepairDecision, applyRepair } from './systems/parentPrep.js';
+import { buildMonthCalendar } from './systems/monthCalendar.js';
 
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
 
@@ -377,6 +378,15 @@ export class Game {
       needsApproval: this.needsRaceApproval(),
     });
   }
+  // Month-grouped view of the season calendar for a real month-based UI (#224).
+  monthCalendar() {
+    return buildMonthCalendar(this.state.calendar ?? [], {
+      startMonthIndex: 3, // amateur seasons ramp through spring — start in April
+      currentWeek: this.week,
+      year: this.seasonYear,
+    });
+  }
+
   // Validate a mid-season schedule edit (#225).
   guardScheduleEdit(edit) {
     return guardEdit(edit, {
