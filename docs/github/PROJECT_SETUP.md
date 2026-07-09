@@ -159,6 +159,25 @@ The Living World, Reputation, and Legacy backlog issue drafts in `docs/github/is
 
 These drafts are documentation only and should not be treated as approval to implement gameplay, call the GitHub API, create real GitHub issues directly, or add a free-roam Pit Area system. Race weekend depth should come through decisions, events, notifications, and consequences.
 
+
+## Home Region & Geographic World Simulation planning references
+
+The Home Region & Geographic World Simulation issue drafts in `docs/github/issues/20_home_region_geographic_world_issues.md` define how careers start from a real place instead of a generic motocross world. Use these drafts when triaging design work for:
+
+- Home Region Selection
+- Geographic World Simulation
+- Regional Racing Calendar
+- Regional Tracks
+- Travel Distance/Cost
+- Regional Weather
+- Regional Reputation
+- Local Dealer Network
+- Hometown Pride
+- Regional competition strength and riding-style development
+- DD-0043, DD-0044, DD-0045
+
+These drafts are documentation only and should not be treated as approval to implement gameplay, call the GitHub API, create real GitHub issues directly, or delete existing planned issues. Their purpose is to make schedules, tracks, weather, travel, dealers, reputation, and opportunities feel grounded in the rider's home region/state/hometown.
+
 ## Master roadmap reference
 
 Use [`MASTER_ROADMAP.md`](../../MASTER_ROADMAP.md) as the release-level source of truth for the App Store v1.0 product goal, required systems, non-goals, high-risk areas, launch readiness checklist, and version roadmap. When triaging GitHub planning work, preserve existing future issues and categorize them into v1.0, v1.1, v2.0, or future rather than deleting them.
