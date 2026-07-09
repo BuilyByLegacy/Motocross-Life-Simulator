@@ -16,17 +16,23 @@
 
 export const LORETTA_STAGES = ['area', 'regional', 'national'];
 
-// Each stage advances its top finishers to the next. Slot counts are the
-// deterministic model values (real events vary; these keep the sim legible).
+// Each stage advances its top finishers to the next, mirroring the real AMA
+// Amateur National qualifying process (see docs/design/road-to-lorettas-qualification.md):
+//   Area Qualifier  — two-moto format, top ~9 advance to the Regional.
+//   Regional Championship — three-moto format, top 6 advance to the National.
+//   Loretta Lynn's National — three-moto format; invite-only, no further stage.
+// Real Area advancement varies by region per the supplemental rules; 9 is the
+// deterministic model default that keeps the sim legible.
 export const STAGE_INFO = {
-  area: { key: 'area', label: 'Area Qualifier', short: 'Area', order: 0, next: 'regional', advanceSlots: 6 },
-  regional: { key: 'regional', label: 'Regional Championship', short: 'Regional', order: 1, next: 'national', advanceSlots: 8 },
-  national: { key: 'national', label: "Loretta Lynn's National", short: "Loretta's", order: 2, next: null, advanceSlots: 0 },
+  area: { key: 'area', label: 'Area Qualifier', short: 'Area', order: 0, next: 'regional', advanceSlots: 9, motos: 2 },
+  regional: { key: 'regional', label: 'Regional Championship', short: 'Regional', order: 1, next: 'national', advanceSlots: 6, motos: 3 },
+  national: { key: 'national', label: "Loretta Lynn's National", short: "Loretta's", order: 2, next: null, advanceSlots: 0, motos: 3 },
 };
 
-// The qualifying map is split into regions; a rider chases through one region.
+// The qualifying map is split into eight real AMA amateur regions; a rider
+// chases through one region and advancement stays within it.
 export const LORETTA_REGIONS = [
-  'Northeast', 'Southeast', 'Mid-South', 'North Central', 'South Central', 'Northwest', 'Southwest',
+  'Northeast', 'Southeast', 'Mid-East', 'North Central', 'South Central', 'Northwest', 'Mid-West', 'Southwest',
 ];
 
 // Classes eligible to chase Loretta's in this build (mirrors the game's ladder).

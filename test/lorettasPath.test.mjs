@@ -1,8 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  LorettasPath, classifyEvent, STAGE_INFO, LORETTA_CLASSES,
+  LorettasPath, classifyEvent, STAGE_INFO, LORETTA_CLASSES, LORETTA_REGIONS,
 } from '../src/systems/lorettasPath.js';
+
+// #223 — the qualification structure must mirror the real AMA amateur process:
+// Area (2 motos, top 9 advance) → Regional (3 motos, top 6 advance) → National
+// (3 motos, invite-only), across eight regions.
+test('#223 stage structure matches the real Loretta Lynn qualifying process', () => {
+  assert.equal(STAGE_INFO.area.advanceSlots, 9);
+  assert.equal(STAGE_INFO.area.motos, 2);
+  assert.equal(STAGE_INFO.regional.advanceSlots, 6);
+  assert.equal(STAGE_INFO.regional.motos, 3);
+  assert.equal(STAGE_INFO.national.motos, 3);
+  assert.equal(STAGE_INFO.national.next, null); // no stage beyond the National
+  assert.equal(LORETTA_REGIONS.length, 8);
+  for (const r of ['Northeast', 'Mid-East', 'Mid-West', 'Southwest']) assert.ok(LORETTA_REGIONS.includes(r));
+});
 
 const area = { id: 'aq', name: 'Northeast Area Qualifier', category: 'qualifier', region: 'Northeast', day: 20 };
 const regional = { id: 'rc', name: 'Northeast Regional', lorettaStage: 'regional', region: 'Northeast', day: 45 };
