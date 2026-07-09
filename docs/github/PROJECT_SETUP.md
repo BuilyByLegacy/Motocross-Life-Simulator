@@ -181,3 +181,17 @@ These drafts are documentation only and should not be treated as approval to imp
 ## Master roadmap reference
 
 Use [`MASTER_ROADMAP.md`](../../MASTER_ROADMAP.md) as the release-level source of truth for the App Store v1.0 product goal, required systems, non-goals, high-risk areas, launch readiness checklist, and version roadmap. When triaging GitHub planning work, preserve existing future issues and categorize them into v1.0, v1.1, v2.0, or future rather than deleting them.
+
+## WonderLane Trip at a Glance & Daily Planning planning references
+
+The WonderLane Trip at a Glance and Daily Planning Upgrade issue drafts in `docs/github/issues/30_trip_at_a_glance_daily_planning_issues.md` define planning work for:
+
+- Trip at a Glance Upgrade
+- Daily Planning Upgrade
+- Schedule Guidance
+- Daily Readiness
+- Daily Planning Rules
+- Trip Timeline
+- Morning/Afternoon/Evening Blocks
+
+These drafts are documentation only and should not be treated as approval to implement features, call the GitHub API, create real GitHub issues directly, enable payments, or enable AI. The intended V1 direction is a deterministic, mobile-friendly planning experience that preserves Open Preview behavior while making trip overview and daily schedules more useful, visual, guided, and personalized.

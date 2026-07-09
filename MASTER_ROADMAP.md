@@ -170,3 +170,17 @@ Planning documents should remain documentation-only until a scoped implementatio
 9. Run TestFlight
 10. Submit App Store v1.0
 11. Keep Home Region Selection, Geographic World Simulation, Regional Racing Calendar, Regional Tracks, Travel Distance/Cost, Regional Weather, Regional Reputation, Local Dealer Network, and Hometown Pride scoped to the approved v1.0 cutline
+
+## 11. WonderLane Trip Planning Draft References
+
+The draft issues in `docs/github/issues/30_trip_at_a_glance_daily_planning_issues.md` capture the WonderLane Trip at a Glance and Daily Planning Upgrade planning scope, including:
+
+- Trip at a Glance Upgrade
+- Daily Planning Upgrade
+- Schedule Guidance
+- Daily Readiness
+- Daily Planning Rules
+- Trip Timeline
+- Morning/Afternoon/Evening Blocks
+
+These references are documentation-only issue drafts. They do not implement features, create real GitHub issues, call the GitHub API, enable payments, or enable AI.
