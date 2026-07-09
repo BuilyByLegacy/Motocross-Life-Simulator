@@ -25,6 +25,7 @@ import { MemoryTriggerRegistry, defaultTriggers } from './systems/memoryTriggers
 import { NotificationQueue } from './systems/notifications.js';
 import { buildGarageView, makeListingDraft, publishListing, completeSale } from './systems/garageView.js';
 import { phoneApps as buildPhoneApps, canAccess } from './systems/phoneHub.js';
+import { PhoneStateStore } from './systems/phoneState.js';
 import { dealerCatalog as buildDealerCatalog, dealerPrice, placeOrder, receiveOrders } from './systems/dealer.js';
 import { search as usedSearch, filterListings as usedFilter, sortListings as usedSort } from './systems/usedMarketplace.js';
 import { RaceSession } from './engines/raceEngine.js';
@@ -101,6 +102,7 @@ export class Game {
     if (this.state.bike) this.assets.ensure(this.state.bike, { kind: 'bike' });
     // Phone / Internet hub notification queue (issue #74).
     this.notifications = NotificationQueue.fromJSON(this.state.notifications);
+    this.phoneStateStore = PhoneStateStore.fromJSON(this.state.phoneState);
     if (!this.state.market.drafts) this.state.market.drafts = []; // listing drafts (#76)
     if (!this.state.market.orders) this.state.market.orders = []; // dealer orders (#39)
     // Feed the phone: big memories and race results become notifications (#74).
@@ -196,6 +198,7 @@ export class Game {
     this.state.assets = this.assets.toJSON();
     this.state.memTriggers = this.memTriggers.toJSON();
     this.state.notifications = this.notifications.toJSON();
+    this.state.phoneState = this.phoneStateStore.toJSON();
     return {
       v: 2,
       seed: this.rng.seed,
@@ -225,6 +228,7 @@ export class Game {
     g.assets = AssetRegistry.fromJSON(g.state.assets);
     g.memTriggers = MemoryTriggerRegistry.fromJSON(g.state.memTriggers, defaultTriggers());
     g.notifications = NotificationQueue.fromJSON(g.state.notifications);
+    g.phoneStateStore = PhoneStateStore.fromJSON(g.state.phoneState);
     return g;
   }
 
@@ -595,6 +599,12 @@ export class Game {
     return buildPhoneApps(this.phoneCtx(), badges);
   }
   phoneAccess(appId) { return canAccess(appId, this.phoneCtx()); }
+  phoneState(appId) { return this.phoneStateStore.state(appId); }
+  updatePhoneState(appId, patch = {}) {
+    this.phoneStateStore.update(appId, patch);
+    this.state.phoneState = this.phoneStateStore.toJSON();
+    return this.phoneStateStore.state(appId);
+  }
 
   // ---- Dealer channel: OEM catalog + orders (issues #33/#39) ---------------
   // A sponsor unlocks a dealer discount on eligible parts.
